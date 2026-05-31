@@ -4,6 +4,18 @@ All notable changes to Baka are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.6] — 2026-06-01
+
+### Added
+- **Playback speed** in the preview — a slider from 0 to 1000% (100% = normal,
+  up to 10×), applied live and saved per wallpaper. Video uses real rate; web
+  scales any HTML5 `<video>` playback.
+- **Multi-monitor apply** — choose any combination of connected displays (or
+  "select all") in the preview; apply puts the wallpaper on exactly the chosen
+  screens and clears it from deselected ones.
+- **Infinite scroll** in the Workshop — pages now load automatically as you
+  scroll instead of a "load more" button, with an "all results" end marker.
+
 ## [0.1.5] — 2026-06-01
 
 ### Added

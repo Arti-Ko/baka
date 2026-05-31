@@ -14,6 +14,10 @@ final class VideoWallpaperRenderer: WallpaperRenderer {
     private var looper: AVPlayerLooper?
     private let playerLayer = AVPlayerLayer()
 
+    /// Desired playback multiplier (1.0 = normal). 0 freezes the video.
+    private var speed: Double = 1.0
+    private var isPaused = false
+
     init() {
         let container = LayerHostingView()
         container.wantsLayer = true
@@ -35,21 +39,38 @@ final class VideoWallpaperRenderer: WallpaperRenderer {
         let asset = AVURLAsset(url: url)
         let item = AVPlayerItem(asset: asset)
         looper = AVPlayerLooper(player: player, templateItem: item)
-        player.play()
-        Log.wallpaper.log("video loaded: \(wallpaper.title, privacy: .public)")
+        speed = wallpaper.speedMultiplier
+        isPaused = false
+        applyRate()
+        Log.wallpaper.log("video loaded: \(wallpaper.title, privacy: .public) speed=\(self.speed)")
     }
 
     func apply(_ directive: RenderDirective, muted: Bool) {
         player.isMuted = muted
         switch directive {
         case .pause:
-            player.pause()
+            isPaused = true
         case .play:
             // Hardware video decode is already efficient; the fps cap is
             // honored by Metal/web renderers, not by AVFoundation playback.
-            if player.timeControlStatus != .playing {
-                player.play()
-            }
+            isPaused = false
+        }
+        applyRate()
+    }
+
+    func setSpeed(_ multiplier: Double) {
+        speed = max(0, multiplier)
+        applyRate()
+    }
+
+    /// Drives the player rate from the current speed + pause state. A speed of
+    /// 0 (or a pause directive) halts decode entirely.
+    private func applyRate() {
+        let rate = (isPaused || speed <= 0) ? 0 : Float(speed)
+        if rate == 0 {
+            player.pause()
+        } else {
+            player.rate = rate
         }
     }
 

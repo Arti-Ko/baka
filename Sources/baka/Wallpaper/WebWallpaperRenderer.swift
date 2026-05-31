@@ -17,6 +17,7 @@ final class WebWallpaperRenderer: WallpaperRenderer {
     private var currentURL: URL?
     private var currentFPSCap: Int?
     private var isBlanked = false
+    private var speed: Double = 1.0
 
     init() {
         let config = WKWebViewConfiguration()
@@ -35,6 +36,7 @@ final class WebWallpaperRenderer: WallpaperRenderer {
         }
         currentURL = url
         isBlanked = false
+        speed = wallpaper.speedMultiplier
         installFPSCapScript(currentFPSCap)
         webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
         Log.wallpaper.log("web loaded: \(wallpaper.title, privacy: .public)")
@@ -53,6 +55,20 @@ final class WebWallpaperRenderer: WallpaperRenderer {
             }
             resume()
         }
+    }
+
+    func setSpeed(_ multiplier: Double) {
+        speed = max(0, multiplier)
+        applySpeed()
+    }
+
+    /// Best-effort for web wallpapers: scale the playback rate of any HTML5
+    /// `<video>` elements (covers the common video-backed web wallpapers).
+    /// Arbitrary canvas/WebGL animations can't be retimed generically.
+    private func applySpeed() {
+        guard !isBlanked else { return }
+        let js = "document.querySelectorAll('video').forEach(v => v.playbackRate = \(speed));"
+        webView.evaluateJavaScript(js, completionHandler: nil)
     }
 
     func tearDown() {

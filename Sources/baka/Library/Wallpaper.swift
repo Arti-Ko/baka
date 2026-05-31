@@ -34,6 +34,10 @@ struct Wallpaper: Identifiable, Codable, Hashable, Sendable {
     let author: String?
     let tags: [String]
 
+    /// Playback speed multiplier (1.0 = normal). Optional for backward
+    /// compatibility with libraries saved before speed existed (nil → 1.0).
+    let speed: Double?
+
     init(
         id: String,
         title: String,
@@ -42,7 +46,8 @@ struct Wallpaper: Identifiable, Codable, Hashable, Sendable {
         previewURL: URL? = nil,
         workshopID: String? = nil,
         author: String? = nil,
-        tags: [String] = []
+        tags: [String] = [],
+        speed: Double? = nil
     ) {
         self.id = id
         self.title = title
@@ -52,21 +57,29 @@ struct Wallpaper: Identifiable, Codable, Hashable, Sendable {
         self.workshopID = workshopID
         self.author = author
         self.tags = tags
+        self.speed = speed
     }
 
     var isInstalled: Bool { contentURL != nil }
 
+    /// Effective playback multiplier, clamped to a sane range (0…10 = 0–1000%).
+    var speedMultiplier: Double { min(max(speed ?? 1.0, 0), 10) }
+
     /// Returns a new copy with the content location filled in.
     func withContentURL(_ url: URL) -> Wallpaper {
         Wallpaper(
-            id: id,
-            title: title,
-            kind: kind,
-            contentURL: url,
-            previewURL: previewURL,
-            workshopID: workshopID,
-            author: author,
-            tags: tags
+            id: id, title: title, kind: kind, contentURL: url,
+            previewURL: previewURL, workshopID: workshopID,
+            author: author, tags: tags, speed: speed
+        )
+    }
+
+    /// Returns a new copy with the given speed multiplier (1.0 = normal).
+    func withSpeed(_ multiplier: Double) -> Wallpaper {
+        Wallpaper(
+            id: id, title: title, kind: kind, contentURL: contentURL,
+            previewURL: previewURL, workshopID: workshopID,
+            author: author, tags: tags, speed: multiplier
         )
     }
 }

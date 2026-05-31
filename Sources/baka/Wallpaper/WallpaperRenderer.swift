@@ -24,6 +24,9 @@ protocol WallpaperRenderer: AnyObject {
     /// Apply the current render directive (play/pause, fps, mute).
     func apply(_ directive: RenderDirective, muted: Bool)
 
+    /// Set the playback speed multiplier (1.0 = normal, 0 = frozen, 10 = 1000%).
+    func setSpeed(_ multiplier: Double)
+
     /// Stop playback and free resources before the window is torn down.
     func tearDown()
 }

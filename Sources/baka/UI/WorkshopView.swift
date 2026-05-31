@@ -35,27 +35,33 @@ struct WorkshopView: View {
                 nsfwNotice
             }
             LazyVGrid(columns: columns, spacing: 14) {
-                ForEach(browser.items) { item in
+                ForEach(Array(browser.items.enumerated()), id: \.element.id) { index, item in
                     WorkshopCard(
                         item: item,
                         isDownloading: browser.isDownloading(item),
                         isInstalled: browser.isInstalled(item),
                         onDownload: { browser.download(item) }
                     )
+                    // Infinite scroll: when a card near the end appears, fetch
+                    // the next page. The browser guards against double-loads.
+                    .onAppear {
+                        if index >= browser.items.count - 6 {
+                            Task { await browser.loadMore() }
+                        }
+                    }
                 }
             }
             .padding(16)
 
-            if browser.canLoadMore {
-                Button { Task { await browser.loadMore() } } label: {
-                    if browser.isLoading {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Text("Загрузить ещё").frame(maxWidth: .infinity)
-                    }
-                }
-                .buttonStyle(.bordered)
-                .padding([.horizontal, .bottom], 16)
+            if browser.isLoading {
+                ProgressView()
+                    .controlSize(.small)
+                    .padding(.bottom, 20)
+            } else if !browser.canLoadMore && !browser.items.isEmpty {
+                Text("Это все результаты")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .padding(.bottom, 20)
             }
         }
     }
