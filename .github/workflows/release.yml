@@ -1,0 +1,41 @@
+name: Release
+
+# Builds a signed-ad-hoc .app bundle and publishes it as a GitHub Release
+# whenever a version tag (vX.Y.Z) is pushed.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: swift --version
+
+      - name: Run tests
+        run: swift test
+
+      - name: Build & bundle Baka.app
+        run: ./Scripts/bundle.sh release
+
+      - name: Zip app bundle
+        run: |
+          cd dist
+          ditto -c -k --sequesterRsrc --keepParent baka.app Baka-macos.zip
+          ls -lh
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Baka ${{ github.ref_name }}
+          generate_release_notes: true
+          files: dist/Baka-macos.zip
