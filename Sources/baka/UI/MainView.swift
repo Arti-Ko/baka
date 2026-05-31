@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// Top-level sections of the app, shown as a source-list sidebar.
 enum AppSection: String, CaseIterable, Identifiable {
@@ -60,6 +61,9 @@ struct MainView: View {
             }
         }
         .listStyle(.sidebar)
+        .safeAreaInset(edge: .top) {
+            BrandHeader()
+        }
         .safeAreaInset(edge: .bottom) {
             PowerStatusBar().padding(12)
         }
@@ -75,6 +79,28 @@ struct MainView: View {
         case .downloads:
             DownloadsView()
         }
+    }
+}
+
+/// Branded header at the top of the sidebar: the real app icon centered with
+/// the "Baka" wordmark and version beneath it.
+struct BrandHeader: View {
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 64, height: 64)
+                .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
+            Text("Baka")
+                .font(.system(size: 20, weight: .bold))
+            Text(AppVersion.displayString)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 18)
+        .padding(.bottom, 14)
     }
 }
 
