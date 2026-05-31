@@ -100,4 +100,16 @@ final class AppState: ObservableObject {
         // Keep our copy of settings in sync for the UI.
         settings = settings.assigning(wallpaperID, toScreen: key)
     }
+
+    /// Removes every wallpaper and all downloaded content, clears monitor
+    /// assignments, and tears down active wallpaper windows. Keeps power
+    /// settings and the Steam login.
+    func resetAllContent() {
+        var cleared = settings
+        cleared.assignments = [:]
+        settings = cleared
+        controller.applySettings(cleared) // tears down windows
+        downloads.clearAll()
+        library.removeAll()
+    }
 }

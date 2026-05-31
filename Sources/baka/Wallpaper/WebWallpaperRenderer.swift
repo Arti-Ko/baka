@@ -18,6 +18,7 @@ final class WebWallpaperRenderer: WallpaperRenderer {
     private var currentFPSCap: Int?
     private var isBlanked = false
     private var speed: Double = 1.0
+    private var volume: Double = 0
 
     init() {
         let config = WKWebViewConfiguration()
@@ -42,8 +43,7 @@ final class WebWallpaperRenderer: WallpaperRenderer {
         Log.wallpaper.log("web loaded: \(wallpaper.title, privacy: .public)")
     }
 
-    func apply(_ directive: RenderDirective, muted: Bool) {
-        // Web audio mute is best-effort via injected script.
+    func apply(_ directive: RenderDirective) {
         switch directive {
         case .pause:
             blank()
@@ -68,6 +68,21 @@ final class WebWallpaperRenderer: WallpaperRenderer {
     private func applySpeed() {
         guard !isBlanked else { return }
         let js = "document.querySelectorAll('video').forEach(v => v.playbackRate = \(speed));"
+        webView.evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    func setVolume(_ level: Double) {
+        volume = min(max(level, 0), 1)
+        applyVolume()
+    }
+
+    /// Best-effort: set volume/mute on any HTML5 media elements.
+    private func applyVolume() {
+        guard !isBlanked else { return }
+        let muted = volume <= 0 ? "true" : "false"
+        let js = """
+        document.querySelectorAll('video,audio').forEach(m => { m.volume = \(volume); m.muted = \(muted); });
+        """
         webView.evaluateJavaScript(js, completionHandler: nil)
     }
 

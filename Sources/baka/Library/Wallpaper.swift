@@ -38,6 +38,10 @@ struct Wallpaper: Identifiable, Codable, Hashable, Sendable {
     /// compatibility with libraries saved before speed existed (nil → 1.0).
     let speed: Double?
 
+    /// Audio volume 0…1. Optional for backward compat (nil → 0 = silent, the
+    /// sensible default for a wallpaper).
+    let volume: Double?
+
     init(
         id: String,
         title: String,
@@ -47,7 +51,8 @@ struct Wallpaper: Identifiable, Codable, Hashable, Sendable {
         workshopID: String? = nil,
         author: String? = nil,
         tags: [String] = [],
-        speed: Double? = nil
+        speed: Double? = nil,
+        volume: Double? = nil
     ) {
         self.id = id
         self.title = title
@@ -58,6 +63,7 @@ struct Wallpaper: Identifiable, Codable, Hashable, Sendable {
         self.author = author
         self.tags = tags
         self.speed = speed
+        self.volume = volume
     }
 
     var isInstalled: Bool { contentURL != nil }
@@ -65,12 +71,15 @@ struct Wallpaper: Identifiable, Codable, Hashable, Sendable {
     /// Effective playback multiplier, clamped to a sane range (0…10 = 0–1000%).
     var speedMultiplier: Double { min(max(speed ?? 1.0, 0), 10) }
 
+    /// Effective audio volume, clamped to 0…1 (default silent).
+    var volumeLevel: Double { min(max(volume ?? 0, 0), 1) }
+
     /// Returns a new copy with the content location filled in.
     func withContentURL(_ url: URL) -> Wallpaper {
         Wallpaper(
             id: id, title: title, kind: kind, contentURL: url,
             previewURL: previewURL, workshopID: workshopID,
-            author: author, tags: tags, speed: speed
+            author: author, tags: tags, speed: speed, volume: volume
         )
     }
 
@@ -79,7 +88,16 @@ struct Wallpaper: Identifiable, Codable, Hashable, Sendable {
         Wallpaper(
             id: id, title: title, kind: kind, contentURL: contentURL,
             previewURL: previewURL, workshopID: workshopID,
-            author: author, tags: tags, speed: multiplier
+            author: author, tags: tags, speed: multiplier, volume: volume
+        )
+    }
+
+    /// Returns a new copy with the given audio volume (0…1).
+    func withVolume(_ level: Double) -> Wallpaper {
+        Wallpaper(
+            id: id, title: title, kind: kind, contentURL: contentURL,
+            previewURL: previewURL, workshopID: workshopID,
+            author: author, tags: tags, speed: speed, volume: level
         )
     }
 }

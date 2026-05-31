@@ -8,7 +8,7 @@ import AppKit
 final class WallpaperWindow: NSWindow {
     private let renderer: WallpaperRenderer
     private var globalDirective: RenderDirective = .play(fpsCap: nil)
-    private var muted: Bool = true
+    private var volume: Double = 0
     private var occlusionObserver: NSObjectProtocol?
 
     /// When true, this window's content is currently visible to the user.
@@ -80,10 +80,15 @@ final class WallpaperWindow: NSWindow {
         applyEffectiveDirective()
     }
 
-    func updateDirective(_ directive: RenderDirective, muted: Bool) {
+    func updateDirective(_ directive: RenderDirective) {
         globalDirective = directive
-        self.muted = muted
         applyEffectiveDirective()
+    }
+
+    /// Set the effective audio volume for this window's wallpaper (0…1).
+    func setVolume(_ level: Double) {
+        volume = level
+        renderer.setVolume(level)
     }
 
     func moveTo(screen: NSScreen) {
@@ -110,7 +115,8 @@ final class WallpaperWindow: NSWindow {
         let effective: RenderDirective = (globalDirective.isPaused || coveredAndShouldPause)
             ? .pause
             : globalDirective
-        renderer.apply(effective, muted: muted)
+        renderer.apply(effective)
+        renderer.setVolume(volume)
     }
 
     override var canBecomeKey: Bool { false }

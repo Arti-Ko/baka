@@ -37,8 +37,10 @@ struct PowerPolicy: Codable, Equatable, Sendable {
     /// Frame-rate cap on AC power. 0 means "match display refresh rate".
     var acFPSCap: Int = 0
 
-    /// Mute video wallpapers globally.
-    var muted: Bool = true
+    /// Master mute — silences every wallpaper regardless of its own volume.
+    /// Off by default; per-wallpaper volume (also 0 by default) is the primary
+    /// control.
+    var muted: Bool = false
 
     static let `default` = PowerPolicy()
 }

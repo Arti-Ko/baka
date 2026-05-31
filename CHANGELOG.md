@@ -4,6 +4,22 @@ All notable changes to Baka are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] — 2026-06-01
+
+### Added
+- **Audio control** — a per-wallpaper volume slider (0–100%) in the preview,
+  saved with the wallpaper. Video uses real volume; web scales HTML5 media. A
+  master "mute all" switch remains in Settings.
+- **Reset button** in Settings — removes every wallpaper, all downloaded/
+  imported content, and clears monitor assignments (keeps settings + Steam
+  login), with a confirmation dialog.
+
+### Fixed
+- **Auto-update no longer launches a second copy.** The app now exits hard
+  before the swap (a presented sheet could delay `NSApp.terminate`, leaving the
+  old process alive), and the worker force-quits a lingering instance and
+  relaunches without `-n`, guaranteeing a single running app.
+
 ## [0.1.9] — 2026-06-01
 
 ### Added

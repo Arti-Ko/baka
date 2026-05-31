@@ -31,6 +31,18 @@ final class WallpaperLibrary: ObservableObject {
         save()
     }
 
+    /// Removes every wallpaper and deletes all downloaded/imported content and
+    /// cached previews from disk.
+    func removeAll() {
+        items = []
+        save()
+        let fm = FileManager.default
+        try? fm.removeItem(at: AppPaths.content)
+        try? fm.removeItem(at: AppPaths.previews)
+        try? AppPaths.ensureDirectories()
+        Log.library.log("library reset: all content removed")
+    }
+
     // MARK: - Persistence
 
     private func load() {

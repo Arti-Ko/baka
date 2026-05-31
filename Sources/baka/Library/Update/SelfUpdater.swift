@@ -79,11 +79,12 @@ enum SelfUpdater {
         task.waitUntilExit() // the -c shell returns immediately after backgrounding
 
         onProgress(1.0, "Перезапуск…")
-        Log.app.log("self-update staged (log: \(logPath)); relaunching")
-        // 5. Quit so the script can replace the bundle. Small delay to ensure
-        // the detached worker is already running.
+        Log.app.log("self-update staged (log: \(logPath)); exiting to swap")
+        // 5. Quit so the worker can replace the bundle. Use a hard exit (not
+        // NSApp.terminate) so a presented sheet/runloop can't delay or cancel
+        // termination — a lingering process caused a second instance to launch.
         try? await Task.sleep(nanoseconds: 400_000_000)
-        await MainActor.run { NSApp.terminate(nil) }
+        exit(0) // terminate immediately; the detached worker takes over
     }
 
     // MARK: - Helpers
@@ -104,11 +105,17 @@ enum SelfUpdater {
         echo "[baka-update] src=$src"
         echo "[baka-update] dest=$dest"
 
-        # Wait (up to ~30s) for the running app to terminate.
-        for _ in $(seq 1 150); do
+        # Wait (up to ~10s) for the running app to quit.
+        for _ in $(seq 1 50); do
           kill -0 "$pid" 2>/dev/null || break
           sleep 0.2
         done
+        # If it's still alive, force it down so we never end up with two copies.
+        if kill -0 "$pid" 2>/dev/null; then
+          echo "[baka-update] app still alive; terminating pid $pid"
+          kill -TERM "$pid" 2>/dev/null; sleep 1
+          kill -9 "$pid" 2>/dev/null; sleep 0.5
+        fi
         echo "[baka-update] app exited; swapping"
         sleep 0.5
 
@@ -127,11 +134,10 @@ enum SelfUpdater {
           mv "$backup" "$dest" 2>/dev/null
         fi
 
-        # Relaunch — retry a few times in case LaunchServices needs a moment to
-        # re-register the freshly-replaced bundle.
+        # Relaunch the (now single) instance. No -n: never spawn a duplicate.
         sleep 0.5
         for _ in 1 2 3; do
-          if open -n "$dest"; then echo "[baka-update] relaunched"; break; fi
+          if open "$dest"; then echo "[baka-update] relaunched"; break; fi
           echo "[baka-update] open failed; retrying"
           sleep 1
         done

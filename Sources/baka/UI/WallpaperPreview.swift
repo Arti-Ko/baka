@@ -17,6 +17,8 @@ struct WallpaperPreviewView: View {
     @State private var selectedKeys: Set<String> = []
     /// Speed in percent: 100 = normal, range 0…1000 (0×…10×).
     @State private var speedPercent: Double = 100
+    /// Volume in percent: 0…100 (0 = muted).
+    @State private var volumePercent: Double = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -36,14 +38,15 @@ struct WallpaperPreviewView: View {
     @ViewBuilder
     private var preview: some View {
         if wallpaper.kind == .video, let url = wallpaper.contentURL {
-            VideoPreviewView(url: url, speed: speedPercent / 100.0)
+            VideoPreviewView(url: url, speed: speedPercent / 100.0, volume: volumePercent / 100.0)
         } else {
-            RendererPreview(wallpaper: wallpaper, speed: speedPercent / 100.0)
+            RendererPreview(wallpaper: wallpaper, speed: speedPercent / 100.0, volume: volumePercent / 100.0)
         }
     }
 
     private func initSelection() {
         speedPercent = (wallpaper.speedMultiplier * 100).rounded()
+        volumePercent = (wallpaper.volumeLevel * 100).rounded()
         // Pre-select screens already showing this wallpaper, else the initial.
         let current = state.screens.screens
             .filter { state.settings.assignedWallpaperID(forScreen: $0.key) == wallpaper.id }
@@ -70,6 +73,7 @@ struct WallpaperPreviewView: View {
             }
 
             speedControl
+            volumeControl
             monitorSelection
 
             HStack(spacing: 12) {
@@ -137,10 +141,42 @@ struct WallpaperPreviewView: View {
         String(format: "%.2g", speedPercent / 100.0)
     }
 
+    private var volumeControl: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Label("Громкость", systemImage: volumeIcon)
+                    .font(.callout.weight(.medium))
+                Spacer()
+                Text("\(Int(volumePercent))%")
+                    .font(.callout.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                Button {
+                    volumePercent = volumePercent > 0 ? 0 : 50
+                } label: {
+                    Image(systemName: volumePercent > 0 ? "speaker.slash" : "speaker.wave.2")
+                }
+                .buttonStyle(.borderless)
+                .help(volumePercent > 0 ? "Заглушить" : "Включить звук")
+            }
+            Slider(value: $volumePercent, in: 0...100, step: 1)
+        }
+    }
+
+    private var volumeIcon: String {
+        switch volumePercent {
+        case 0: return "speaker.slash.fill"
+        case ..<40: return "speaker.wave.1.fill"
+        case ..<80: return "speaker.wave.2.fill"
+        default: return "speaker.wave.3.fill"
+        }
+    }
+
     private func apply() {
-        // Persist the chosen speed onto the wallpaper before assigning so the
-        // desktop renderer plays it at this speed.
-        let updated = wallpaper.withSpeed(speedPercent / 100.0)
+        // Persist the chosen speed + volume onto the wallpaper before assigning
+        // so the desktop renderer uses them.
+        let updated = wallpaper
+            .withSpeed(speedPercent / 100.0)
+            .withVolume(volumePercent / 100.0)
         state.library.upsert(updated)
 
         for screen in state.screens.screens {
@@ -199,12 +235,12 @@ private struct FlexibleChips: View {
 private struct VideoPreviewView: NSViewRepresentable {
     let url: URL
     let speed: Double
+    let volume: Double
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeNSView(context: Context) -> AVPlayerView {
         let player = AVPlayer(url: url)
-        player.isMuted = true
         context.coordinator.attach(player: player)
 
         let view = AVPlayerView()
@@ -214,6 +250,8 @@ private struct VideoPreviewView: NSViewRepresentable {
         view.showsFullScreenToggleButton = false
 
         applySpeed(speed, to: player)
+        applyVolume(volume, to: player)
+        context.coordinator.lastVolume = volume
         player.play()
         return view
     }
@@ -224,6 +262,16 @@ private struct VideoPreviewView: NSViewRepresentable {
             context.coordinator.lastSpeed = speed
             applySpeed(speed, to: player)
         }
+        if context.coordinator.lastVolume != volume {
+            context.coordinator.lastVolume = volume
+            applyVolume(volume, to: player)
+        }
+    }
+
+    private func applyVolume(_ volume: Double, to player: AVPlayer) {
+        let clamped = Float(min(max(volume, 0), 1))
+        player.volume = clamped
+        player.isMuted = clamped <= 0
     }
 
     static func dismantleNSView(_ nsView: AVPlayerView, coordinator: Coordinator) {
@@ -248,6 +296,7 @@ private struct VideoPreviewView: NSViewRepresentable {
     @MainActor
     final class Coordinator {
         var lastSpeed: Double = 1.0
+        var lastVolume: Double = -1
         private var endObserver: NSObjectProtocol?
         private weak var player: AVPlayer?
 
@@ -276,6 +325,7 @@ private struct VideoPreviewView: NSViewRepresentable {
 private struct RendererPreview: NSViewRepresentable {
     let wallpaper: Wallpaper
     let speed: Double
+    let volume: Double
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -296,9 +346,11 @@ private struct RendererPreview: NSViewRepresentable {
 
         do {
             try renderer.load(wallpaper)
-            renderer.apply(.play(fpsCap: nil), muted: true)
+            renderer.apply(.play(fpsCap: nil))
             renderer.setSpeed(speed)
+            renderer.setVolume(volume)
             context.coordinator.lastSpeed = speed
+            context.coordinator.lastVolume = volume
         } catch {
             Log.wallpaper.error("preview load failed: \(error.localizedDescription)")
         }
@@ -306,10 +358,13 @@ private struct RendererPreview: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        // Apply live speed changes from the slider.
         if context.coordinator.lastSpeed != speed {
             context.coordinator.lastSpeed = speed
             context.coordinator.renderer?.setSpeed(speed)
+        }
+        if context.coordinator.lastVolume != volume {
+            context.coordinator.lastVolume = volume
+            context.coordinator.renderer?.setVolume(volume)
         }
     }
 
@@ -322,5 +377,6 @@ private struct RendererPreview: NSViewRepresentable {
     final class Coordinator {
         var renderer: WallpaperRenderer?
         var lastSpeed: Double = 1.0
+        var lastVolume: Double = -1
     }
 }

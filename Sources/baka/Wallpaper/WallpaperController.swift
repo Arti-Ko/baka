@@ -116,7 +116,8 @@ final class WallpaperController: ObservableObject {
         guard let window = windows[key] else { return }
         do {
             try window.load(wallpaper)
-            window.updateDirective(governor.directive, muted: settings.power.muted)
+            window.updateDirective(governor.directive)
+            window.setVolume(effectiveVolume(for: wallpaper))
         } catch {
             Log.wallpaper.error("Failed to load wallpaper on \(key): \(error.localizedDescription)")
         }
@@ -124,8 +125,13 @@ final class WallpaperController: ObservableObject {
 
     private func broadcast(_ directive: RenderDirective) {
         for window in windows.values {
-            window.updateDirective(directive, muted: settings.power.muted)
+            window.updateDirective(directive)
         }
+    }
+
+    /// Per-wallpaper volume, silenced entirely by the global mute switch.
+    private func effectiveVolume(for wallpaper: Wallpaper) -> Double {
+        settings.power.muted ? 0 : wallpaper.volumeLevel
     }
 
     // MARK: - Helpers

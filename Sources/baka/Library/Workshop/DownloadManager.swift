@@ -60,6 +60,11 @@ final class DownloadManager: ObservableObject {
         tasks.removeAll { !$0.isActive }
     }
 
+    func clearAll() {
+        tasks.removeAll()
+        items.removeAll()
+    }
+
     /// Adds an item to the queue (no-op if already active) and kicks the worker.
     func enqueue(_ item: WorkshopItem) {
         guard !isQueuedOrActive(item.id) else { return }

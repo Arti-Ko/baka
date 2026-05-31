@@ -45,8 +45,7 @@ final class VideoWallpaperRenderer: WallpaperRenderer {
         Log.wallpaper.log("video loaded: \(wallpaper.title, privacy: .public) speed=\(self.speed)")
     }
 
-    func apply(_ directive: RenderDirective, muted: Bool) {
-        player.isMuted = muted
+    func apply(_ directive: RenderDirective) {
         switch directive {
         case .pause:
             isPaused = true
@@ -61,6 +60,12 @@ final class VideoWallpaperRenderer: WallpaperRenderer {
     func setSpeed(_ multiplier: Double) {
         speed = max(0, multiplier)
         applyRate()
+    }
+
+    func setVolume(_ level: Double) {
+        let clamped = Float(min(max(level, 0), 1))
+        player.volume = clamped
+        player.isMuted = clamped <= 0
     }
 
     /// Drives the player rate from the current speed + pause state. A speed of

@@ -40,7 +40,7 @@ struct SettingsView: View {
 
                 Toggle("Пауза, когда обои перекрыты окном", isOn: pauseWhenCovered)
                 Toggle("Пауза в режиме энергосбережения", isOn: pauseInLowPower)
-                Toggle("Без звука", isOn: muted)
+                Toggle("Заглушить звук всех обоев", isOn: muted)
             }
 
             SteamSettingsView(steam: state.steam)
@@ -68,10 +68,33 @@ struct SettingsView: View {
                 LabeledContent("Рендеринг",
                                value: state.governor.directive.isPaused ? "Пауза" : "Активен")
             }
+
+            Section("Сброс") {
+                Button(role: .destructive) {
+                    showResetConfirm = true
+                } label: {
+                    Label("Удалить весь контент", systemImage: "trash")
+                }
+                Text("Удаляет все обои, скачанный и импортированный контент и снимает их со всех мониторов. Настройки и вход в Steam сохранятся.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .navigationTitle("Настройки")
+        .confirmationDialog(
+            "Удалить весь контент?",
+            isPresented: $showResetConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Удалить всё", role: .destructive) { state.resetAllContent() }
+            Button("Отмена", role: .cancel) {}
+        } message: {
+            Text("Это безвозвратно удалит все обои и скачанные файлы с диска.")
+        }
     }
+
+    @State private var showResetConfirm = false
 
     // MARK: - Bindings that route mutations through AppState
 
