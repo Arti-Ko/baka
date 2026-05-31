@@ -31,6 +31,9 @@ struct WorkshopView: View {
 
     private var grid: some View {
         ScrollView {
+            if browser.query.isAuthorMode {
+                authorBanner
+            }
             if browser.hiddenNSFWCount > 0 {
                 nsfwNotice
             }
@@ -40,7 +43,8 @@ struct WorkshopView: View {
                         item: item,
                         isDownloading: browser.isDownloading(item),
                         isInstalled: browser.isInstalled(item),
-                        onDownload: { browser.download(item) }
+                        onDownload: { browser.download(item) },
+                        onShowAuthor: authorAction(for: item)
                     )
                     // Infinite scroll: when a card near the end appears, fetch
                     // the next page. The browser guards against double-loads.
@@ -64,6 +68,26 @@ struct WorkshopView: View {
                     .padding(.bottom, 20)
             }
         }
+    }
+
+    /// Returns a "show this author's wallpapers" action if the item has a
+    /// creator id, else nil (hides the menu entry).
+    private func authorAction(for item: WorkshopItem) -> (() -> Void)? {
+        guard let author = item.author, author.contains(where: \.isNumber) else { return nil }
+        return { Task { await browser.showAuthor(id: author, label: item.title) } }
+    }
+
+    private var authorBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "person.crop.circle")
+            Text("Обои этого автора")
+                .font(.callout.weight(.medium))
+            Spacer()
+            Button("Показать все") { Task { await browser.clearAuthor() } }
+                .buttonStyle(.link)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
     }
 
     private var nsfwNotice: some View {
@@ -249,6 +273,7 @@ private struct WorkshopCard: View {
     let isDownloading: Bool
     let isInstalled: Bool
     let onDownload: () -> Void
+    var onShowAuthor: (() -> Void)?
     @State private var isHovering = false
 
     var body: some View {
@@ -279,6 +304,16 @@ private struct WorkshopCard: View {
         .scaleEffect(isHovering ? 1.015 : 1)
         .onHover { isHovering = $0 }
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovering)
+        .contextMenu {
+            if !isInstalled && !isDownloading {
+                Button { onDownload() } label: { Label("Скачать", systemImage: "arrow.down.circle") }
+            }
+            if let onShowAuthor {
+                Button { onShowAuthor() } label: {
+                    Label("Другие обои от автора", systemImage: "person.crop.circle")
+                }
+            }
+        }
     }
 
     private func badge(_ text: String, _ icon: String, alignment: Alignment) -> some View {

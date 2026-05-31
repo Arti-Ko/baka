@@ -27,6 +27,20 @@ final class WorkshopBrowser: ObservableObject {
         await load(reset: true)
     }
 
+    /// Switch to author mode: show only this creator's wallpapers.
+    func showAuthor(id: String, label: String?) async {
+        query.authorID = id
+        query.authorLabel = label
+        await runSearch()
+    }
+
+    /// Leave author mode and return to the regular filtered feed.
+    func clearAuthor() async {
+        query.authorID = nil
+        query.authorLabel = nil
+        await runSearch()
+    }
+
     /// Mutate the query via a closure then re-search (used by filter controls).
     func apply(_ mutate: (inout WorkshopQuery) -> Void) async {
         mutate(&query)

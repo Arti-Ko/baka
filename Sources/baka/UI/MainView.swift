@@ -65,11 +65,17 @@ struct MainView: View {
         }
     }
 
+    /// Switches to the Workshop tab and shows the given author's wallpapers.
+    private func showAuthor(_ id: String, _ label: String?) {
+        section = .workshop
+        Task { await browser.showAuthor(id: id, label: label) }
+    }
+
     @ViewBuilder
     private var detail: some View {
         switch section ?? .library {
         case .library:
-            LibraryView()
+            LibraryView(onShowAuthor: showAuthor)
         case .workshop:
             WorkshopView(browser: browser)
         case .downloads:

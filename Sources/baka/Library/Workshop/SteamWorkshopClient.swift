@@ -24,6 +24,10 @@ final class SteamWorkshopClient: WorkshopClient {
     // MARK: - Search
 
     func search(_ query: WorkshopQuery) async throws -> [WorkshopItem] {
+        // Author mode: list a specific creator's published WE items.
+        if let author = query.authorID {
+            return try await searchByAuthor(author, page: query.page)
+        }
         let kinds = query.type.kinds
         if kinds.count == 1 {
             return try await searchSingle(query, kind: kinds[0])
@@ -34,6 +38,25 @@ final class SteamWorkshopClient: WorkshopClient {
             perKind.append((try? await searchSingle(query, kind: kind)) ?? [])
         }
         return Self.interleave(perKind)
+    }
+
+    /// Scrapes a creator's published WE items from their profile workshop page.
+    private func searchByAuthor(_ steamID: String, page: Int) async throws -> [WorkshopItem] {
+        // Only digits are a valid steamID64 path segment.
+        let id = steamID.filter(\.isNumber)
+        guard !id.isEmpty else { return [] }
+        var components = URLComponents(
+            string: "https://steamcommunity.com/profiles/\(id)/myworkshopfiles/")!
+        components.queryItems = [
+            .init(name: "appid", value: Self.appID),
+            .init(name: "p", value: String(max(1, page))),
+            .init(name: "numperpage", value: "30")
+        ]
+        guard let url = components.url else { return [] }
+        let html = try await fetchString(url)
+        let ids = Self.extractPublishedFileIDs(from: html)
+        guard !ids.isEmpty else { return [] }
+        return try await details(for: ids)
     }
 
     private func searchSingle(_ query: WorkshopQuery, kind: WallpaperKind) async throws -> [WorkshopItem] {

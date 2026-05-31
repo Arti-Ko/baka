@@ -5,6 +5,8 @@ import UniformTypeIdentifiers
 /// the wallpaper grid. Picking a monitor, then a wallpaper, assigns it.
 struct LibraryView: View {
     @EnvironmentObject private var state: AppState
+    /// Called to view a creator's other wallpapers (switches to the Workshop tab).
+    let onShowAuthor: (String, String?) -> Void
     @State private var selectedScreenKey: String?
     @State private var showImporter = false
 
@@ -14,7 +16,8 @@ struct LibraryView: View {
             Divider()
             LibraryGrid(
                 selectedScreenKey: effectiveScreenKey,
-                onImport: { showImporter = true }
+                onImport: { showImporter = true },
+                onShowAuthor: onShowAuthor
             )
         }
         .navigationTitle("Библиотека")

@@ -93,7 +93,15 @@ struct WorkshopQuery: Equatable, Sendable {
     var resolution: String = ""
     /// 18+ handling: hide (default), show, or only.
     var nsfw: NSFWFilter = .hide
+    /// When set, results are restricted to this Steam author (creator id);
+    /// other filters/sort don't apply in author mode.
+    var authorID: String?
+    /// Display label for the author banner (best-effort; often the title of one
+    /// of their wallpapers).
+    var authorLabel: String?
     var page: Int = 1
+
+    var isAuthorMode: Bool { authorID != nil }
 
     /// All server-side `requiredtags` for a specific kind (type + categories +
     /// resolution + age). For "only 18+" we request the Mature tag from Steam

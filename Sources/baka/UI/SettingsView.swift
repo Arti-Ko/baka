@@ -74,7 +74,9 @@ struct SettingsView: View {
                     showResetConfirm = true
                 } label: {
                     Label("Удалить весь контент", systemImage: "trash")
+                        .foregroundStyle(.red)
                 }
+                .tint(.red)
                 Text("Удаляет все обои, скачанный и импортированный контент и снимает их со всех мониторов. Настройки и вход в Steam сохранятся.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

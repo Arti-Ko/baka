@@ -7,6 +7,7 @@ struct WallpaperCard: View {
     let isActive: Bool
     let onSelect: () -> Void
     let onDelete: () -> Void
+    var onShowAuthor: (() -> Void)?
 
     @State private var isHovering = false
 
@@ -32,6 +33,11 @@ struct WallpaperCard: View {
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovering)
         .onHover { isHovering = $0 }
         .contextMenu {
+            if let onShowAuthor {
+                Button(action: onShowAuthor) {
+                    Label("Другие обои от автора", systemImage: "person.crop.circle")
+                }
+            }
             Button(role: .destructive, action: onDelete) {
                 Label("Удалить", systemImage: "trash")
             }

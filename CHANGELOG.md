@@ -4,6 +4,16 @@ All notable changes to Baka are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] — 2026-06-01
+
+### Added
+- **Browse by author** — right-click a wallpaper (in the Workshop or your
+  library) → "Другие обои от автора" to see only that creator's wallpapers,
+  with a banner and a "show all" reset.
+
+### Changed
+- The "Удалить весь контент" reset button is now red.
+
 ## [0.2.0] — 2026-06-01
 
 ### Added

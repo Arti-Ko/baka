@@ -6,6 +6,7 @@ struct LibraryGrid: View {
     @EnvironmentObject private var state: AppState
     let selectedScreenKey: String?
     let onImport: () -> Void
+    let onShowAuthor: (String, String?) -> Void
 
     @State private var previewWallpaper: Wallpaper?
 
@@ -23,7 +24,8 @@ struct LibraryGrid: View {
                             wallpaper: wallpaper,
                             isActive: isAssignedToSelected(wallpaper),
                             onSelect: { previewWallpaper = wallpaper },
-                            onDelete: { state.library.remove(id: wallpaper.id) }
+                            onDelete: { state.library.remove(id: wallpaper.id) },
+                            onShowAuthor: authorAction(for: wallpaper)
                         )
                     }
                 }
@@ -55,6 +57,13 @@ struct LibraryGrid: View {
     private func isAssignedToSelected(_ wallpaper: Wallpaper) -> Bool {
         guard let key = selectedScreenKey else { return false }
         return state.settings.assignedWallpaperID(forScreen: key) == wallpaper.id
+    }
+
+    /// "Other wallpapers by author" action, only for workshop items with a
+    /// known creator id.
+    private func authorAction(for wallpaper: Wallpaper) -> (() -> Void)? {
+        guard let author = wallpaper.author, author.contains(where: \.isNumber) else { return nil }
+        return { onShowAuthor(author, wallpaper.title) }
     }
 }
 
