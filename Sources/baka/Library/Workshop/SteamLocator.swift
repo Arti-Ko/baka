@@ -1,35 +1,45 @@
 import Foundation
 
-/// Locates a local Steam installation and the Wallpaper Engine workshop content
-/// it has already downloaded. When an item is here, we can import it instantly
-/// with no SteamCMD round-trip.
+/// Locates downloaded Wallpaper Engine workshop content across **both** places
+/// it can live on macOS:
+/// 1. The standard Steam install — `~/Library/Application Support/Steam/...`
+///    (used by the real Steam client *and* by SteamCMD, which writes here).
+/// 2. Baka's own SteamCMD install dir — `…/Application Support/baka/steamcmd/…`
+///    (in case a setup downloads relative to the tool instead).
+///
+/// All lookups search every existing root, so an item is found no matter which
+/// directory it landed in.
 enum SteamLocator {
     static let weAppID = "431960"
 
-    /// Standard macOS Steam data root: ~/Library/Application Support/Steam
-    static var steamRoot: URL? {
-        let url = FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Steam", isDirectory: true)
-        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    private static var appSupport: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
     }
 
-    /// .../Steam/steamapps/workshop/content/431960
-    static var workshopContentDir: URL? {
-        guard let root = steamRoot else { return nil }
-        let dir = root
-            .appendingPathComponent("steamapps/workshop/content/\(weAppID)", isDirectory: true)
-        return FileManager.default.fileExists(atPath: dir.path) ? dir : nil
+    /// Candidate workshop-content roots, in priority order.
+    private static var candidateRoots: [URL] {
+        [
+            appSupport.appendingPathComponent("Steam/steamapps/workshop/content/\(weAppID)"),
+            AppPaths.support.appendingPathComponent("steamcmd/steamapps/workshop/content/\(weAppID)")
+        ]
     }
 
-    /// Returns the on-disk folder for a published file id if Steam already has
-    /// it downloaded locally.
+    /// Existing workshop-content roots.
+    static var contentDirs: [URL] {
+        candidateRoots.filter { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
+    /// Returns the on-disk folder for an item from *any* root, requiring it to
+    /// exist and be non-empty (a partial download leaves an empty folder).
     static func localFolder(forItem id: String) -> URL? {
-        guard let base = workshopContentDir else { return nil }
-        let folder = base.appendingPathComponent(id, isDirectory: true)
-        return FileManager.default.fileExists(atPath: folder.path) ? folder : nil
+        for root in candidateRoots {
+            let folder = root.appendingPathComponent(id, isDirectory: true)
+            let contents = try? FileManager.default.contentsOfDirectory(atPath: folder.path)
+            if contents?.isEmpty == false { return folder }
+        }
+        return nil
     }
 
-    /// True when a usable Steam install with WE workshop content is present.
-    static var hasLocalWorkshop: Bool { workshopContentDir != nil }
+    /// True when at least one root with workshop content exists.
+    static var hasLocalWorkshop: Bool { !contentDirs.isEmpty }
 }

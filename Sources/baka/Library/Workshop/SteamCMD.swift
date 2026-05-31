@@ -136,24 +136,14 @@ actor SteamCMD {
     /// printed in the success line first, then fall back to known locations.
     /// Only returns a folder that exists AND is non-empty.
     private func downloadedFolder(for id: String, output: String) -> URL? {
-        var candidates: [URL] = []
+        // Trust the exact path SteamCMD printed first…
         if let reported = Self.extractDownloadedPath(for: id, in: output) {
-            candidates.append(URL(fileURLWithPath: reported))
-        }
-        // Standard Steam location (where steamcmd actually writes on macOS).
-        let appSupport = FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        candidates.append(appSupport.appendingPathComponent(
-            "Steam/steamapps/workshop/content/\(SteamLocator.weAppID)/\(id)"))
-        // Our steamcmd install dir (older assumption / other setups).
-        candidates.append(installDir.appendingPathComponent(
-            "steamapps/workshop/content/\(SteamLocator.weAppID)/\(id)"))
-
-        for folder in candidates {
+            let folder = URL(fileURLWithPath: reported)
             let contents = try? FileManager.default.contentsOfDirectory(atPath: folder.path)
             if contents?.isEmpty == false { return folder }
         }
-        return nil
+        // …otherwise search both known workshop roots.
+        return SteamLocator.localFolder(forItem: id)
     }
 
     /// Parses the exact path from `Downloaded item <id> to "<path>" (...)`.

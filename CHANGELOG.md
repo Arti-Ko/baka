@@ -4,6 +4,14 @@ All notable changes to Baka are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.4] — 2026-06-01
+
+### Fixed
+- Workshop content is now discovered from **both** locations it can live in —
+  the standard Steam folder (`~/Library/Application Support/Steam/…`) and Baka's
+  own SteamCMD directory — so downloads and already-subscribed items are found
+  regardless of where they landed.
+
 ## [0.1.3] — 2026-06-01
 
 ### Added
