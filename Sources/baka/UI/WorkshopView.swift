@@ -124,9 +124,10 @@ private struct FilterBar: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
-                    Picker("", selection: kindBinding) {
-                        Text("Видео").tag(WallpaperKind.video)
-                        Text("Web").tag(WallpaperKind.web)
+                    Picker("", selection: typeBinding) {
+                        ForEach(WallpaperTypeFilter.allCases, id: \.self) { type in
+                            Text(type.label).tag(type)
+                        }
                     }
                     .pickerStyle(.segmented).fixedSize()
 
@@ -235,9 +236,9 @@ private struct FilterBar: View {
         if set.contains(value) { set.remove(value) } else { set.insert(value) }
     }
 
-    private var kindBinding: Binding<WallpaperKind> {
-        Binding(get: { browser.query.kind },
-                set: { k in Task { await browser.apply { $0.kind = k } } })
+    private var typeBinding: Binding<WallpaperTypeFilter> {
+        Binding(get: { browser.query.type },
+                set: { t in Task { await browser.apply { $0.type = t } } })
     }
 }
 

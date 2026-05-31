@@ -24,17 +24,44 @@ final class SteamWorkshopClient: WorkshopClient {
     // MARK: - Search
 
     func search(_ query: WorkshopQuery) async throws -> [WorkshopItem] {
-        guard let url = Self.browseURL(for: query) else { throw WorkshopError.parsing }
+        let kinds = query.type.kinds
+        if kinds.count == 1 {
+            return try await searchSingle(query, kind: kinds[0])
+        }
+        // "Both": fetch each type, then interleave so the grid mixes them.
+        var perKind: [[WorkshopItem]] = []
+        for kind in kinds {
+            perKind.append((try? await searchSingle(query, kind: kind)) ?? [])
+        }
+        return Self.interleave(perKind)
+    }
+
+    private func searchSingle(_ query: WorkshopQuery, kind: WallpaperKind) async throws -> [WorkshopItem] {
+        guard let url = Self.browseURL(for: query, kind: kind) else { throw WorkshopError.parsing }
         let html = try await fetchString(url)
         let ids = Self.extractPublishedFileIDs(from: html)
         guard !ids.isEmpty else { return [] }
         return try await details(for: ids)
     }
 
+    /// Round-robin merge so both types appear mixed, de-duplicated by id.
+    static func interleave(_ lists: [[WorkshopItem]]) -> [WorkshopItem] {
+        var result: [WorkshopItem] = []
+        var seen = Set<String>()
+        let maxCount = lists.map(\.count).max() ?? 0
+        for i in 0..<maxCount {
+            for list in lists where i < list.count {
+                let item = list[i]
+                if seen.insert(item.id).inserted { result.append(item) }
+            }
+        }
+        return result
+    }
+
     /// Builds the community browse URL. Type is filtered server-side via
     /// `requiredtags` so each page returns a full set of renderable items
     /// (instead of being decimated by client-side Scene filtering).
-    static func browseURL(for query: WorkshopQuery) -> URL? {
+    static func browseURL(for query: WorkshopQuery, kind: WallpaperKind) -> URL? {
         var components = URLComponents(string: "https://steamcommunity.com/workshop/browse/")!
         var items: [URLQueryItem] = [
             .init(name: "appid", value: appID),
@@ -57,7 +84,7 @@ final class SteamWorkshopClient: WorkshopClient {
 
         // Type tag (Video / Web) + categories + resolution, all server-side.
         // This is the key fix for "only a handful of results".
-        for tag in query.requiredTags {
+        for tag in query.requiredTags(for: kind) {
             items.append(.init(name: "requiredtags[]", value: tag))
         }
 

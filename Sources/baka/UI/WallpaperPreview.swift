@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import AVKit
 
 /// Live preview shown when a wallpaper is tapped: renders the actual wallpaper
 /// (video/web) at a large size so you see exactly how it will look, then lets
@@ -19,7 +20,7 @@ struct WallpaperPreviewView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            RendererPreview(wallpaper: wallpaper, speed: speedPercent / 100.0)
+            preview
                 .aspectRatio(16.0 / 9.0, contentMode: .fit)
                 .frame(maxWidth: .infinity)
                 .background(.black)
@@ -28,6 +29,17 @@ struct WallpaperPreviewView: View {
         }
         .frame(width: 760, height: 640)
         .onAppear(perform: initSelection)
+    }
+
+    /// Video shows a native player (timeline + scrubbing); web uses the live
+    /// renderer (it has no timeline concept).
+    @ViewBuilder
+    private var preview: some View {
+        if wallpaper.kind == .video, let url = wallpaper.contentURL {
+            VideoPreviewView(url: url, speed: speedPercent / 100.0)
+        } else {
+            RendererPreview(wallpaper: wallpaper, speed: speedPercent / 100.0)
+        }
     }
 
     private func initSelection() {
@@ -177,6 +189,84 @@ private struct FlexibleChips: View {
                 .buttonStyle(.plain)
             }
             Spacer(minLength: 0)
+        }
+    }
+}
+
+/// Native video player for the preview: shows the standard inline transport
+/// (timeline scrubber, play/pause, current time) and loops the clip. Speed is
+/// driven through `defaultRate` so the play button honors the chosen speed.
+private struct VideoPreviewView: NSViewRepresentable {
+    let url: URL
+    let speed: Double
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> AVPlayerView {
+        let player = AVPlayer(url: url)
+        player.isMuted = true
+        context.coordinator.attach(player: player)
+
+        let view = AVPlayerView()
+        view.player = player
+        view.controlsStyle = .inline          // timeline + scrubber + play/pause
+        view.videoGravity = .resizeAspectFill  // match the desktop look
+        view.showsFullScreenToggleButton = false
+
+        applySpeed(speed, to: player)
+        player.play()
+        return view
+    }
+
+    func updateNSView(_ nsView: AVPlayerView, context: Context) {
+        guard let player = nsView.player else { return }
+        if context.coordinator.lastSpeed != speed {
+            context.coordinator.lastSpeed = speed
+            applySpeed(speed, to: player)
+        }
+    }
+
+    static func dismantleNSView(_ nsView: AVPlayerView, coordinator: Coordinator) {
+        nsView.player?.pause()
+        coordinator.detach()
+        nsView.player = nil
+    }
+
+    /// Speed of 0 pauses; otherwise set both the live rate and the default rate
+    /// used by the transport's play button.
+    private func applySpeed(_ speed: Double, to player: AVPlayer) {
+        if speed <= 0 {
+            player.rate = 0
+        } else {
+            player.defaultRate = Float(speed)
+            if player.timeControlStatus != .paused || player.rate != 0 {
+                player.rate = Float(speed)
+            }
+        }
+    }
+
+    @MainActor
+    final class Coordinator {
+        var lastSpeed: Double = 1.0
+        private var endObserver: NSObjectProtocol?
+        private weak var player: AVPlayer?
+
+        func attach(player: AVPlayer) {
+            self.player = player
+            // Loop: seek to start and resume at the current default rate.
+            endObserver = NotificationCenter.default.addObserver(
+                forName: .AVPlayerItemDidPlayToEndTime,
+                object: player.currentItem,
+                queue: .main
+            ) { [weak player] _ in
+                player?.seek(to: .zero)
+                if let rate = player?.defaultRate, rate > 0 { player?.rate = rate }
+            }
+        }
+
+        func detach() {
+            if let endObserver { NotificationCenter.default.removeObserver(endObserver) }
+            endObserver = nil
         }
     }
 }

@@ -4,6 +4,15 @@ All notable changes to Baka are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.9] — 2026-06-01
+
+### Added
+- **Video player in the preview** — video wallpapers now open in a native
+  player with a timeline scrubber and play/pause, so you can seek through the
+  clip. Speed still applies (drives the player rate); the clip loops.
+- **Mixed Video + Web results** — the Workshop type filter gained an **«Оба»**
+  option that fetches both types and interleaves them in one feed.
+
 ## [0.1.8] — 2026-06-01
 
 ### Fixed

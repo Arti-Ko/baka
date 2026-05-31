@@ -22,6 +22,19 @@ final class WorkshopParsingTests: XCTestCase {
         XCTAssertEqual(ids, ["111", "222"])
     }
 
+    func testInterleaveMergesAndDedupes() {
+        let a = [item("1"), item("2"), item("3")]
+        let b = [item("4"), item("2"), item("5")] // "2" duplicates a
+        let merged = SteamWorkshopClient.interleave([a, b]).map(\.id)
+        // Round-robin order, duplicate "2" kept only once (first occurrence).
+        XCTAssertEqual(merged, ["1", "4", "2", "3", "5"])
+    }
+
+    private func item(_ id: String) -> WorkshopItem {
+        WorkshopItem(id: id, title: id, previewURL: nil, author: nil,
+                     fileURL: nil, kind: .video, tags: [])
+    }
+
     func testReturnsEmptyWhenNoIDsPresent() {
         let ids = SteamWorkshopClient.extractPublishedFileIDs(from: "<html>nothing</html>")
         XCTAssertTrue(ids.isEmpty)
@@ -104,11 +117,11 @@ final class WorkshopParsingTests: XCTestCase {
 
     func testBrowseURLFiltersByTypeTag() {
         var query = WorkshopQuery()
-        query.kind = .web
+        query.type = .web
         query.sort = .topRated
         query.categories = ["Anime"]
         query.resolution = "3840 x 2160"
-        let url = SteamWorkshopClient.browseURL(for: query)?.absoluteString ?? ""
+        let url = SteamWorkshopClient.browseURL(for: query, kind: .web)?.absoluteString ?? ""
 
         XCTAssertTrue(url.contains("appid=431960"))
         XCTAssertTrue(url.contains("requiredtags%5B%5D=Web"))

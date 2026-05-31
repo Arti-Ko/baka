@@ -58,12 +58,33 @@ enum NSFWFilter: String, CaseIterable, Sendable {
     }
 }
 
+/// Which renderable types to show. `both` runs two queries (video + web) and
+/// merges them, since Steam's `requiredtags` are AND-combined.
+enum WallpaperTypeFilter: String, CaseIterable, Sendable {
+    case video, web, both
+
+    var label: String {
+        switch self {
+        case .video: return "Видео"
+        case .web: return "Web"
+        case .both: return "Оба"
+        }
+    }
+    var kinds: [WallpaperKind] {
+        switch self {
+        case .video: return [.video]
+        case .web: return [.web]
+        case .both: return [.video, .web]
+        }
+    }
+}
+
 /// A fully described Workshop search. Immutable; the UI produces new copies.
 struct WorkshopQuery: Equatable, Sendable {
     var text: String = ""
     /// Type filter applied server-side (`requiredtags`). We only support the
     /// renderable types, so this is never Scene/Application.
-    var kind: WallpaperKind = .video
+    var type: WallpaperTypeFilter = .both
     var sort: WorkshopSort = .trend
     var period: TrendPeriod = .week
     /// Multiple genre/category tags (AND-combined by Steam).
@@ -74,15 +95,11 @@ struct WorkshopQuery: Equatable, Sendable {
     var nsfw: NSFWFilter = .hide
     var page: Int = 1
 
-    /// The Workshop type tag for the selected kind.
-    var kindTag: String { kind == .video ? "Video" : "Web" }
-
-    /// All server-side `requiredtags` for this query (type + categories + res +
-    /// age). For "only 18+" we request the Mature tag from Steam directly so we
-    /// actually receive adult items rather than relying on a client filter over
-    /// a SFW-default result set.
-    var requiredTags: [String] {
-        var tags = [kindTag]
+    /// All server-side `requiredtags` for a specific kind (type + categories +
+    /// resolution + age). For "only 18+" we request the Mature tag from Steam
+    /// directly so we actually receive adult items.
+    func requiredTags(for kind: WallpaperKind) -> [String] {
+        var tags = [kind == .video ? "Video" : "Web"]
         tags.append(contentsOf: categories.sorted())
         if !resolution.isEmpty { tags.append(resolution) }
         if nsfw == .only { tags.append("Mature") }
