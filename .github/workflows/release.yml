@@ -13,13 +13,19 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-15
+    # macOS 26 runner → builds against the macOS 26 SDK so the release adopts
+    # the same native design as a local Xcode 26 build (macos-15 linked the
+    # older SDK and rendered in the legacy style on Tahoe).
+    runs-on: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Select latest Xcode
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" || true
+
       - name: Show toolchain
-        run: swift --version
+        run: swift --version && xcodebuild -version
 
       - name: Run tests
         run: swift test

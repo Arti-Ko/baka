@@ -4,6 +4,17 @@ All notable changes to Baka are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] — 2026-06-01
+
+### Fixed
+- Release builds now compile against the **macOS 26 SDK** (CI moved to the
+  `macos-26` runner with Xcode 26), so the downloaded app uses the same native
+  design as a local build instead of the legacy macOS 15 appearance.
+
+### Changed
+- App icon and the **Baka** wordmark + version now live at the top of Settings
+  (centered), not in the sidebar.
+
 ## [0.1.0] — 2026-06-01
 
 The first public build of Baka — native animated wallpapers for macOS.
