@@ -48,16 +48,35 @@ struct UpdateSheet: View {
         }
     }
 
+    @ViewBuilder
     private var footer: some View {
-        HStack(spacing: 10) {
-            Button("Пропустить версию") { updater.skip() }
-                .help("Больше не предлагать эту версию")
-            Spacer()
-            Button("В следующий раз") { updater.remindLater() }
-            Button("Обновиться сейчас") { updater.updateNow() }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
+        if updater.isInstalling {
+            HStack(spacing: 10) {
+                ProgressView().controlSize(.small)
+                Text("Скачиваю и устанавливаю обновление… приложение перезапустится.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(20)
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                if let error = updater.installError {
+                    Label(error, systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+                HStack(spacing: 10) {
+                    Button("Пропустить версию") { updater.skip() }
+                        .help("Больше не предлагать эту версию")
+                    Spacer()
+                    Button("В следующий раз") { updater.remindLater() }
+                    Button("Обновиться сейчас") { updater.updateNow() }
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
+                }
+            }
+            .padding(20)
         }
-        .padding(20)
     }
 }

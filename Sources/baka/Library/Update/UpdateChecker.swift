@@ -20,6 +20,9 @@ final class UpdateChecker: ObservableObject {
     /// Set when a newer, non-skipped release is found → presents the dialog.
     @Published var available: UpdateInfo?
     @Published private(set) var isChecking = false
+    /// True while an in-place update is downloading/staging.
+    @Published private(set) var isInstalling = false
+    @Published var installError: String?
     /// Result of a *manual* check ("up to date" / error), for Settings.
     @Published var statusMessage: String?
 
@@ -59,12 +62,32 @@ final class UpdateChecker: ObservableObject {
 
     // MARK: - User actions
 
+    /// Performs a real in-place update: downloads, swaps the bundle, relaunches.
+    /// Falls back to opening the download in the browser if anything fails
+    /// (e.g. running unbundled in dev, or no write permission).
     func updateNow() {
         guard let info = available else { return }
-        // No code-signing/Sparkle pipeline yet: open the download so the user
-        // can install the new build. Prefer the direct asset, else the page.
-        NSWorkspace.shared.open(info.assetURL ?? info.pageURL)
-        available = nil
+        guard let asset = info.assetURL else {
+            NSWorkspace.shared.open(info.pageURL)
+            available = nil
+            return
+        }
+
+        isInstalling = true
+        installError = nil
+        Task {
+            do {
+                // On success this terminates the app and relaunches the new one.
+                try await SelfUpdater.installAndRelaunch(from: asset)
+            } catch {
+                isInstalling = false
+                installError = (error as? LocalizedError)?.errorDescription
+                    ?? error.localizedDescription
+                Log.app.error("self-update failed: \(self.installError ?? "")")
+                // Fallback: let the user grab it manually.
+                NSWorkspace.shared.open(asset)
+            }
+        }
     }
 
     func remindLater() {
