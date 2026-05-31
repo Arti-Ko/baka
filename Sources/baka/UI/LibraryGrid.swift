@@ -1,11 +1,13 @@
 import SwiftUI
 
 /// The wallpaper library shown as a responsive card grid. Clicking a card
-/// assigns that wallpaper to the currently selected monitor.
+/// opens a live preview, from which it can be applied to a monitor.
 struct LibraryGrid: View {
     @EnvironmentObject private var state: AppState
     let selectedScreenKey: String?
     let onImport: () -> Void
+
+    @State private var previewWallpaper: Wallpaper?
 
     private let columns = [GridItem(.adaptive(minimum: 220, maximum: 280), spacing: 16)]
 
@@ -20,7 +22,7 @@ struct LibraryGrid: View {
                         WallpaperCard(
                             wallpaper: wallpaper,
                             isActive: isAssignedToSelected(wallpaper),
-                            onSelect: { assign(wallpaper) },
+                            onSelect: { previewWallpaper = wallpaper },
                             onDelete: { state.library.remove(id: wallpaper.id) }
                         )
                     }
@@ -37,6 +39,10 @@ struct LibraryGrid: View {
             }
         }
         .navigationSubtitle(subtitle)
+        .sheet(item: $previewWallpaper) { wallpaper in
+            WallpaperPreviewView(wallpaper: wallpaper, initialScreenKey: selectedScreenKey)
+                .environmentObject(state)
+        }
     }
 
     private var subtitle: String {
@@ -49,11 +55,6 @@ struct LibraryGrid: View {
     private func isAssignedToSelected(_ wallpaper: Wallpaper) -> Bool {
         guard let key = selectedScreenKey else { return false }
         return state.settings.assignedWallpaperID(forScreen: key) == wallpaper.id
-    }
-
-    private func assign(_ wallpaper: Wallpaper) {
-        guard let key = selectedScreenKey else { return }
-        state.assign(wallpaperID: wallpaper.id, toScreen: key)
     }
 }
 

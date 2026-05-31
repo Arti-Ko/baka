@@ -16,6 +16,16 @@ final class SteamCMDParsingTests: XCTestCase {
         XCTAssertNil(SteamCMD.extractFinishedItemID("Downloading item 999")) // not "Downloaded"
     }
 
+    func testExtractsDownloadedPathForSpecificItem() {
+        let out = #"Success. Downloaded item 3733785098 to "/Users/x/Library/Application Support/Steam/steamapps/workshop/content/431960/3733785098" (128332893 bytes)"#
+        XCTAssertEqual(
+            SteamCMD.extractDownloadedPath(for: "3733785098", in: out),
+            "/Users/x/Library/Application Support/Steam/steamapps/workshop/content/431960/3733785098"
+        )
+        // Different id → no match.
+        XCTAssertNil(SteamCMD.extractDownloadedPath(for: "999", in: out))
+    }
+
     func testCachedCredentialsIsNotALoginFailure() {
         // The exact false positive that broke sessions before.
         let output = "Logging in user 'x'...\nWaiting for user info...OK\nusing cached credentials"

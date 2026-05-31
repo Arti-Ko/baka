@@ -119,7 +119,7 @@ actor SteamCMD {
         let loggedOut = Self.indicatesLoginFailure(out)
         var results: [String: SteamDownloadResult] = [:]
         for id in ids {
-            if let folder = downloadedFolder(for: id) {
+            if let folder = downloadedFolder(for: id, output: out) {
                 results[id] = .success(folder)
             } else if loggedOut {
                 results[id] = .notLoggedIn
@@ -130,13 +130,40 @@ actor SteamCMD {
         return results
     }
 
-    /// Returns the item's content folder only if it exists AND is non-empty
-    /// (steamcmd can create an empty folder on a failed/partial download).
-    private func downloadedFolder(for id: String) -> URL? {
-        let folder = installDir
-            .appendingPathComponent("steamapps/workshop/content/\(SteamLocator.weAppID)/\(id)")
-        let contents = try? FileManager.default.contentsOfDirectory(atPath: folder.path)
-        return (contents?.isEmpty == false) ? folder : nil
+    /// Locates the downloaded item folder. SteamCMD on macOS stores workshop
+    /// content under the *standard* Steam path (`~/Library/Application
+    /// Support/Steam/...`), NOT under our install dir — so we trust the path
+    /// printed in the success line first, then fall back to known locations.
+    /// Only returns a folder that exists AND is non-empty.
+    private func downloadedFolder(for id: String, output: String) -> URL? {
+        var candidates: [URL] = []
+        if let reported = Self.extractDownloadedPath(for: id, in: output) {
+            candidates.append(URL(fileURLWithPath: reported))
+        }
+        // Standard Steam location (where steamcmd actually writes on macOS).
+        let appSupport = FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        candidates.append(appSupport.appendingPathComponent(
+            "Steam/steamapps/workshop/content/\(SteamLocator.weAppID)/\(id)"))
+        // Our steamcmd install dir (older assumption / other setups).
+        candidates.append(installDir.appendingPathComponent(
+            "steamapps/workshop/content/\(SteamLocator.weAppID)/\(id)"))
+
+        for folder in candidates {
+            let contents = try? FileManager.default.contentsOfDirectory(atPath: folder.path)
+            if contents?.isEmpty == false { return folder }
+        }
+        return nil
+    }
+
+    /// Parses the exact path from `Downloaded item <id> to "<path>" (...)`.
+    nonisolated static func extractDownloadedPath(for id: String, in output: String) -> String? {
+        let pattern = "Downloaded item \(id) to \"([^\"]+)\""
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: output, range: NSRange(output.startIndex..., in: output)),
+              let range = Range(match.range(at: 1), in: output)
+        else { return nil }
+        return String(output[range])
     }
 
     // MARK: - Process plumbing

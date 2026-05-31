@@ -4,6 +4,19 @@ All notable changes to Baka are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.3] — 2026-06-01
+
+### Added
+- **Live preview** — tapping a wallpaper opens a large, playing preview so you
+  see exactly how it looks before applying it (with a per-monitor target picker).
+
+### Fixed
+- **Workshop downloads now appear in the library.** SteamCMD on macOS writes
+  workshop content to the standard Steam path (`~/Library/Application
+  Support/Steam/...`), not our install dir — Baka now reads the exact path from
+  SteamCMD's output and checks both locations, so downloaded wallpapers install
+  correctly.
+
 ## [0.1.2] — 2026-06-01
 
 ### Added
