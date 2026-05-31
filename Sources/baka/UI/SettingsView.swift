@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// Power & performance settings — the controls behind baka's battery story.
 struct SettingsView: View {
@@ -6,6 +7,24 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section {
+                VStack(spacing: 8) {
+                    Image(nsImage: NSApp.applicationIconImage)
+                        .resizable()
+                        .interpolation(.high)
+                        .frame(width: 72, height: 72)
+                        .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
+                    Text("Baka")
+                        .font(.system(size: 22, weight: .bold))
+                    Text(AppVersion.displayString)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .listRowBackground(Color.clear)
+            }
+
             Section("Питание и производительность") {
                 Picker("На батарее", selection: batteryBehavior) {
                     ForEach(BatteryBehavior.allCases, id: \.self) { behavior in
@@ -27,7 +46,6 @@ struct SettingsView: View {
             SteamSettingsView(steam: state.steam)
 
             Section("О программе") {
-                LabeledContent("Версия", value: AppVersion.displayString)
                 HStack {
                     Button {
                         Task { await state.updater.check(manual: true) }

@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🖼️ Baka
+<img src="docs/baka-icon.png" width="128" alt="Baka app icon" />
+
+# Baka
 
 ### Animated live wallpapers for macOS — native, fast, battery-aware.
 
