@@ -51,12 +51,20 @@ struct UpdateSheet: View {
     @ViewBuilder
     private var footer: some View {
         if updater.isInstalling {
-            HStack(spacing: 10) {
-                ProgressView().controlSize(.small)
-                Text("Скачиваю и устанавливаю обновление… приложение перезапустится.")
-                    .font(.callout)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(updater.updatePhase.isEmpty ? "Обновление…" : updater.updatePhase)
+                        .font(.callout.weight(.medium))
+                    Spacer()
+                    Text("\(Int(updater.updateProgress * 100))%")
+                        .font(.callout.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                ProgressView(value: updater.updateProgress)
+                    .progressViewStyle(.linear)
+                Text("Приложение перезапустится автоматически. Не закрывайте окно.")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
-                Spacer()
             }
             .padding(20)
         } else {

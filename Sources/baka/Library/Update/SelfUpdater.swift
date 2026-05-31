@@ -21,9 +21,13 @@ enum SelfUpdateError: LocalizedError {
 /// shell script that waits for this process to quit, swaps the app bundle in
 /// place, strips quarantine, and relaunches the new build.
 enum SelfUpdater {
+    /// Progress phase + fraction (0…1) reported to the UI during an update.
+    typealias ProgressHandler = @Sendable (_ fraction: Double, _ phase: String) -> Void
+
     /// Downloads + stages the update, then relaunches. On success this call
-    /// terminates the app and never returns normally.
-    static func installAndRelaunch(from assetURL: URL) async throws {
+    /// terminates the app and never returns normally. `onProgress` reports the
+    /// download/unzip/install phases so the UI can show a live status bar.
+    static func installAndRelaunch(from assetURL: URL, onProgress: @escaping ProgressHandler) async throws {
         let appURL = Bundle.main.bundleURL
         guard appURL.pathExtension == "app" else { throw SelfUpdateError.notBundled }
         guard FileManager.default.isWritableFile(atPath: appURL.deletingLastPathComponent().path) else {
@@ -34,18 +38,25 @@ enum SelfUpdater {
             .appendingPathComponent("baka-update-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
 
-        // 1. Download the zip.
-        let (tmp, _) = try await URLSession.shared.download(from: assetURL)
+        // 1. Download the zip with progress (mapped to 0…0.9 of the bar).
+        onProgress(0, "Подготовка…")
+        let downloader = ProgressDownloader()
+        downloader.onProgress = { fraction in
+            onProgress(fraction * 0.9, "Скачивание \(Int(fraction * 100))%")
+        }
+        let downloaded = try await downloader.download(assetURL)
         let zip = work.appendingPathComponent("update.zip")
-        try FileManager.default.moveItem(at: tmp, to: zip)
+        try FileManager.default.moveItem(at: downloaded, to: zip)
 
         // 2. Unzip with ditto.
+        onProgress(0.92, "Распаковка…")
         let unzipDir = work.appendingPathComponent("extracted", isDirectory: true)
         try FileManager.default.createDirectory(at: unzipDir, withIntermediateDirectories: true)
         let (out, code) = try runSync("/usr/bin/ditto", ["-x", "-k", zip.path, unzipDir.path])
         guard code == 0 else { throw SelfUpdateError.unzipFailed(out) }
 
         // 3. Locate the new .app bundle.
+        onProgress(0.97, "Установка…")
         guard let newApp = findApp(in: unzipDir) else { throw SelfUpdateError.appNotFound }
 
         // 4. Write the swap+relaunch script and launch it detached.
@@ -62,6 +73,7 @@ enum SelfUpdater {
         task.standardError = nil
         try task.run()
 
+        onProgress(1.0, "Перезапуск…")
         Log.app.log("self-update staged; relaunching")
         // 5. Quit so the script can replace the bundle.
         await MainActor.run { NSApp.terminate(nil) }
@@ -113,5 +125,55 @@ enum SelfUpdater {
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         return (String(decoding: data, as: UTF8.self), process.terminationStatus)
+    }
+}
+
+/// A `URLSessionDownloadDelegate` that reports byte progress and returns the
+/// finished file. `URLSession.download(from:)` gives no progress callbacks, so
+/// we drive a download task ourselves.
+private final class ProgressDownloader: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    /// Called on each chunk with the completed fraction (0…1).
+    var onProgress: (@Sendable (Double) -> Void)?
+
+    private var continuation: CheckedContinuation<URL, Error>?
+
+    func download(_ url: URL) async throws -> URL {
+        try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+            let session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
+            session.downloadTask(with: url).resume()
+            session.finishTasksAndInvalidate()
+        }
+    }
+
+    func urlSession(_ session: URLSession,
+                    downloadTask: URLSessionDownloadTask,
+                    didWriteData bytesWritten: Int64,
+                    totalBytesWritten: Int64,
+                    totalBytesExpectedToWrite: Int64) {
+        guard totalBytesExpectedToWrite > 0 else { return }
+        onProgress?(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite))
+    }
+
+    func urlSession(_ session: URLSession,
+                    downloadTask: URLSessionDownloadTask,
+                    didFinishDownloadingTo location: URL) {
+        // The temp file is removed once this returns, so move it out now.
+        let dest = FileManager.default.temporaryDirectory
+            .appendingPathComponent("baka-dl-\(UUID().uuidString)")
+        do {
+            try FileManager.default.moveItem(at: location, to: dest)
+            continuation?.resume(returning: dest)
+        } catch {
+            continuation?.resume(throwing: error)
+        }
+        continuation = nil
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        if let error {
+            continuation?.resume(throwing: error)
+            continuation = nil
+        }
     }
 }

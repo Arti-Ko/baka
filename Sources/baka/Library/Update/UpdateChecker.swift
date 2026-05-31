@@ -22,6 +22,8 @@ final class UpdateChecker: ObservableObject {
     @Published private(set) var isChecking = false
     /// True while an in-place update is downloading/staging.
     @Published private(set) var isInstalling = false
+    @Published private(set) var updateProgress: Double = 0   // 0…1
+    @Published private(set) var updatePhase: String = ""
     @Published var installError: String?
     /// Result of a *manual* check ("up to date" / error), for Settings.
     @Published var statusMessage: String?
@@ -75,10 +77,17 @@ final class UpdateChecker: ObservableObject {
 
         isInstalling = true
         installError = nil
+        updateProgress = 0
+        updatePhase = "Подготовка…"
         Task {
             do {
                 // On success this terminates the app and relaunches the new one.
-                try await SelfUpdater.installAndRelaunch(from: asset)
+                try await SelfUpdater.installAndRelaunch(from: asset) { [weak self] fraction, phase in
+                    Task { @MainActor in
+                        self?.updateProgress = fraction
+                        self?.updatePhase = phase
+                    }
+                }
             } catch {
                 isInstalling = false
                 installError = (error as? LocalizedError)?.errorDescription
