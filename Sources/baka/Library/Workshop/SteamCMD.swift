@@ -1,5 +1,11 @@
 import Foundation
 
+/// Mutable holder for the currently-downloading item id, used inside the
+/// single-threaded output drain closure.
+private final class CurrentItem: @unchecked Sendable {
+    var id: String?
+}
+
 /// Result of a login attempt.
 enum SteamLoginResult: Sendable, Equatable {
     case success
@@ -100,7 +106,7 @@ actor SteamCMD {
         _ ids: [String],
         user: String,
         password: String,
-        onItemFinished: (@Sendable (String) -> Void)? = nil
+        onProgress: (@Sendable (String, Double) -> Void)? = nil
     ) async throws -> [String: SteamDownloadResult] {
         try await ensureInstalled()
         guard !ids.isEmpty else { return [:] }
@@ -112,8 +118,18 @@ actor SteamCMD {
         }
         args.append("+quit")
 
+        // Track which item SteamCMD is currently downloading so we can attribute
+        // its `[ NN%]` progress lines (which don't carry the id themselves).
+        let current = CurrentItem()
         let (out, _) = try await runSteamCMD(args) { line in
-            if let id = Self.extractFinishedItemID(line) { onItemFinished?(id) }
+            if let id = Self.extractDownloadingItemID(line) {
+                current.id = id
+            } else if let id = Self.extractFinishedItemID(line) {
+                onProgress?(id, 1.0)
+                current.id = nil
+            } else if let pct = Self.parseDownloadPercent(line), let id = current.id {
+                onProgress?(id, pct)
+            }
         }
 
         let loggedOut = Self.indicatesLoginFailure(out)
@@ -247,6 +263,24 @@ actor SteamCMD {
               let range = line.range(of: #"Downloaded item (\d+)"#, options: .regularExpression)
         else { return nil }
         return String(line[range].drop { !$0.isNumber })
+    }
+
+    /// Extracts the id from a "Downloading item <id> ..." start line.
+    nonisolated static func extractDownloadingItemID(_ line: String) -> String? {
+        guard line.contains("Downloading item"),
+              let range = line.range(of: #"Downloading item (\d+)"#, options: .regularExpression)
+        else { return nil }
+        return String(line[range].drop { !$0.isNumber })
+    }
+
+    /// Parses a SteamCMD progress line "[ NN%] Downloading update (...)" → 0…1.
+    nonisolated static func parseDownloadPercent(_ line: String) -> Double? {
+        guard let range = line.range(of: #"\[\s*(\d+)%\]"#, options: .regularExpression) else {
+            return nil
+        }
+        let digits = line[range].filter(\.isNumber)
+        guard let value = Double(digits) else { return nil }
+        return min(max(value / 100.0, 0), 1)
     }
 
     /// True only for genuine login failures. Deliberately does NOT match

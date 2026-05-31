@@ -65,7 +65,12 @@ private struct DownloadRow: View {
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(task.title).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(task.title).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                    if let size = sizeString {
+                        Text(size).font(.caption2).foregroundStyle(.tertiary)
+                    }
+                }
                 statusLine
             }
             Spacer(minLength: 0)
@@ -90,14 +95,13 @@ private struct DownloadRow: View {
             Text("В очереди…").font(.caption).foregroundStyle(.secondary)
         case .downloading:
             VStack(alignment: .leading, spacing: 3) {
-                ProgressView()
+                ProgressView(value: task.progress)
                     .progressViewStyle(.linear)
-                Text(task.source.isEmpty ? "Скачивание…" : "Скачивание через \(task.source)…")
-                    .font(.caption).foregroundStyle(.secondary)
+                Text(downloadStatus).font(.caption).foregroundStyle(.secondary)
             }
         case .installing:
-            HStack(spacing: 6) {
-                ProgressView().controlSize(.small)
+            VStack(alignment: .leading, spacing: 3) {
+                ProgressView().progressViewStyle(.linear)
                 Text("Установка…").font(.caption).foregroundStyle(.secondary)
             }
         case .completed:
@@ -107,6 +111,27 @@ private struct DownloadRow: View {
             Label(message, systemImage: "exclamationmark.triangle.fill")
                 .font(.caption).foregroundStyle(.orange).lineLimit(2)
         }
+    }
+
+    private var sizeString: String? {
+        guard task.sizeBytes > 0 else { return nil }
+        return ByteCountFormatter.string(fromByteCount: Int64(task.sizeBytes), countStyle: .file)
+    }
+
+    /// "SteamCMD · 42% · 54 MB из 128 MB"
+    private var downloadStatus: String {
+        let pct = Int(task.progress * 100)
+        var parts: [String] = []
+        if !task.source.isEmpty { parts.append(task.source) }
+        parts.append("\(pct)%")
+        if task.sizeBytes > 0 {
+            let done = Int64(Double(task.sizeBytes) * task.progress)
+            let total = Int64(task.sizeBytes)
+            let f = ByteCountFormatter()
+            f.countStyle = .file
+            parts.append("\(f.string(fromByteCount: done)) из \(f.string(fromByteCount: total))")
+        }
+        return parts.joined(separator: " · ")
     }
 
     @ViewBuilder

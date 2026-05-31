@@ -214,6 +214,9 @@ final class SteamWorkshopClient: WorkshopClient {
             let fileURL = (fileURLString?.isEmpty == false) ? URL(string: fileURLString!) : nil
             let rawTags = entry["tags"] as? [[String: Any]]
             let tagNames = (rawTags ?? []).compactMap { ($0["tag"] as? String)?.lowercased() }
+            // file_size may arrive as Int or String.
+            let size = (entry["file_size"] as? Int)
+                ?? Int(entry["file_size"] as? String ?? "") ?? 0
 
             byID[id] = WorkshopItem(
                 id: id,
@@ -222,7 +225,8 @@ final class SteamWorkshopClient: WorkshopClient {
                 author: entry["creator"] as? String,
                 fileURL: fileURL,
                 kind: kind(fromTags: rawTags),
-                tags: tagNames
+                tags: tagNames,
+                fileSize: size
             )
         }
 

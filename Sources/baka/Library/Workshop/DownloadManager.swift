@@ -14,6 +14,8 @@ struct DownloadTask: Identifiable, Equatable {
     let title: String
     let previewURL: URL?
     var state: State = .queued
+    var progress: Double = 0    // 0…1 during .downloading
+    var sizeBytes: Int = 0      // content size, for display
     var source: String = ""     // "Steam" | "SteamCMD" | "Direct"
 
     var isActive: Bool {
@@ -81,7 +83,9 @@ final class DownloadManager: ObservableObject {
     func enqueue(_ item: WorkshopItem) {
         guard !isQueuedOrActive(item.id) else { return }
         items[item.id] = item
-        upsert(DownloadTask(id: item.id, title: item.title, previewURL: item.previewURL))
+        var task = DownloadTask(id: item.id, title: item.title, previewURL: item.previewURL)
+        task.sizeBytes = item.fileSize
+        upsert(task)
         persist()
         Task { await processQueue() }
     }
@@ -139,8 +143,18 @@ final class DownloadManager: ObservableObject {
         let byID = Dictionary(uniqueKeysWithValues: batch.map { ($0.id, $0) })
         let ids = batch.map(\.id)
         do {
-            let results = try await steam.downloadItems(ids) { [weak self] finishedID in
-                Task { @MainActor in self?.update(finishedID) { $0.state = .installing } }
+            let results = try await steam.downloadItems(ids) { [weak self] id, fraction in
+                Task { @MainActor in
+                    self?.update(id) {
+                        if fraction >= 1.0 {
+                            $0.progress = 1
+                            $0.state = .installing
+                        } else {
+                            $0.progress = fraction
+                            $0.state = .downloading
+                        }
+                    }
+                }
             }
             for id in ids {
                 guard let item = byID[id] else { continue }
@@ -165,6 +179,7 @@ final class DownloadManager: ObservableObject {
         do {
             try installer.install(from: folder, workshopID: item.id, fallback: item)
             update(item.id) { $0.state = .completed }
+            persist()
         } catch {
             fail(item.id, "Установка не удалась: \(friendly(error))")
         }
@@ -193,7 +208,8 @@ final class DownloadManager: ObservableObject {
                 contentURL: destination, previewURL: previewURL,
                 workshopID: item.id, author: item.author, tags: ["workshop"]
             ))
-            update(item.id) { $0.state = .completed }
+            update(item.id) { $0.state = .completed; $0.progress = 1 }
+            persist()
         } catch {
             fail(item.id, friendly(error))
         }
@@ -223,11 +239,13 @@ final class DownloadManager: ObservableObject {
     private func update(_ id: String, _ transform: (inout DownloadTask) -> Void) {
         guard let index = tasks.firstIndex(where: { $0.id == id }) else { return }
         transform(&tasks[index])
-        persist()
+        // Note: not persisted here — progress ticks are frequent. Persistence
+        // happens at state boundaries (enqueue/fail/complete/retry/clear).
     }
 
     private func fail(_ id: String, _ message: String) {
         update(id) { $0.state = .failed(message) }
+        persist()
     }
 
     // MARK: - Persistence (survive restarts; resume / retry)

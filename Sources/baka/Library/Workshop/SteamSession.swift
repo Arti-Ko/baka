@@ -68,11 +68,11 @@ final class SteamSession: ObservableObject {
     /// Downloads a batch of workshop items in one SteamCMD session (single
     /// login → avoids rate-limiting). `onItemFinished(id)` fires as each item
     /// completes. Returns per-id results.
-    func downloadItems(_ ids: [String], onItemFinished: (@Sendable (String) -> Void)? = nil)
+    func downloadItems(_ ids: [String], onProgress: (@Sendable (String, Double) -> Void)? = nil)
         async throws -> [String: SteamDownloadResult] {
         guard let user = username else { return ids.reduce(into: [:]) { $0[$1] = .notLoggedIn } }
         let password = CredentialStore.password() ?? ""
         return try await cmd.downloadItems(ids, user: user, password: password,
-                                           onItemFinished: onItemFinished)
+                                           onProgress: onProgress)
     }
 }

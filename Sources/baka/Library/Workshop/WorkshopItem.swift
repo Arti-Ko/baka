@@ -18,7 +18,16 @@ struct WorkshopItem: Identifiable, Hashable, Sendable, Codable {
     /// All Workshop tags (type, genre, resolution, age rating, …) lowercased.
     let tags: [String]
 
+    /// Reported content size in bytes (0 if unknown).
+    var fileSize: Int = 0
+
     var isDirectlyDownloadable: Bool { fileURL != nil }
+
+    /// Human-readable size, e.g. "128 MB" (nil when unknown).
+    var sizeString: String? {
+        guard fileSize > 0 else { return nil }
+        return ByteCountFormatter.string(fromByteCount: Int64(fileSize), countStyle: .file)
+    }
 
     /// True when the item is tagged Mature or Questionable (NSFW).
     var isNSFW: Bool {

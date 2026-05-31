@@ -26,6 +26,20 @@ final class SteamCMDParsingTests: XCTestCase {
         XCTAssertNil(SteamCMD.extractDownloadedPath(for: "999", in: out))
     }
 
+    func testParsesDownloadPercent() {
+        XCTAssertEqual(SteamCMD.parseDownloadPercent("[ 42%] Downloading update (3,808 of 15,837 KB)..."), 0.42)
+        XCTAssertEqual(SteamCMD.parseDownloadPercent("[  0%] Downloading update (0 of 100 KB)..."), 0.0)
+        XCTAssertEqual(SteamCMD.parseDownloadPercent("[100%] done"), 1.0)
+        XCTAssertNil(SteamCMD.parseDownloadPercent("Loading Steam API...OK"))
+    }
+
+    func testDistinguishesDownloadingVsDownloaded() {
+        XCTAssertEqual(SteamCMD.extractDownloadingItemID("Downloading item 555 ..."), "555")
+        XCTAssertNil(SteamCMD.extractDownloadingItemID("Success. Downloaded item 555 to \"/x\""))
+        XCTAssertEqual(SteamCMD.extractFinishedItemID("Success. Downloaded item 555 to \"/x\""), "555")
+        XCTAssertNil(SteamCMD.extractFinishedItemID("Downloading item 555 ..."))
+    }
+
     func testCachedCredentialsIsNotALoginFailure() {
         // The exact false positive that broke sessions before.
         let output = "Logging in user 'x'...\nWaiting for user info...OK\nusing cached credentials"

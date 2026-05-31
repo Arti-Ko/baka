@@ -299,7 +299,13 @@ private struct WorkshopCard: View {
             .shadow(color: .black.opacity(isHovering ? 0.25 : 0.12),
                     radius: isHovering ? 10 : 4, y: isHovering ? 5 : 2)
 
-            Text(item.title).font(.system(size: 12, weight: .medium)).lineLimit(1)
+            HStack(spacing: 6) {
+                Text(item.title).font(.system(size: 12, weight: .medium)).lineLimit(1)
+                Spacer(minLength: 0)
+                if let size = item.sizeString {
+                    Text(size).font(.system(size: 10)).foregroundStyle(.tertiary)
+                }
+            }
         }
         .scaleEffect(isHovering ? 1.015 : 1)
         .onHover { isHovering = $0 }
