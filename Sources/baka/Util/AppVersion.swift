@@ -13,7 +13,7 @@ enum AppVersion {
         Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "0"
     }
 
-    static var displayString: String { "v\(current) (\(build))" }
+    static var displayString: String { "v\(current)" }
 
     /// Compares two semantic version strings (a leading "v" is ignored).
     /// Returns true when `lhs` is strictly newer than `rhs`.

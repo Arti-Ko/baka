@@ -4,6 +4,12 @@ All notable changes to Baka are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.7] — 2026-06-01
+
+### Changed
+- Version is now shown cleanly as `v0.1.7` (dropped the build number in
+  parentheses).
+
 ## [0.1.6] — 2026-06-01
 
 ### Added
