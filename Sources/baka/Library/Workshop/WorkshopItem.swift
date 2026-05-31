@@ -2,7 +2,7 @@ import Foundation
 
 /// A wallpaper listing discovered in the Steam Workshop (app 431960).
 /// This is metadata only — the actual asset is fetched on demand.
-struct WorkshopItem: Identifiable, Hashable, Sendable {
+struct WorkshopItem: Identifiable, Hashable, Sendable, Codable {
     let id: String            // publishedfileid
     let title: String
     let previewURL: URL?

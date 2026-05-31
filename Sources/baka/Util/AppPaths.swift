@@ -23,6 +23,10 @@ enum AppPaths {
     /// Serialized settings + per-screen assignments.
     static var settingsFile: URL { support.appendingPathComponent("settings.json") }
 
+    /// Persisted download queue (incomplete + failed items) so they survive
+    /// restarts and can resume / be retried.
+    static var downloadsFile: URL { support.appendingPathComponent("downloads.json") }
+
     /// Creates all required directories. Safe to call repeatedly.
     static func ensureDirectories() throws {
         let fm = FileManager.default

@@ -4,6 +4,21 @@ All notable changes to Baka are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.2] — 2026-06-01
+
+### Fixed
+- **Quit now actually quits.** An active wallpaper (AVPlayer/WKWebView) could
+  keep the process alive, requiring Force Quit. On termination the app now tears
+  down all wallpaper windows and hard-exits.
+- **Download errors no longer say "OK".** Failed SteamCMD downloads now show a
+  meaningful error line instead of trailing log noise.
+
+### Added
+- **Downloads persist and are retryable.** Failed and unfinished downloads stay
+  in the Downloads tab (and survive restarts) instead of vanishing; unfinished
+  ones resume on launch, and failed ones get a **Повторить** (retry) button and
+  a dismiss action.
+
 ## [0.2.1] — 2026-06-01
 
 ### Added

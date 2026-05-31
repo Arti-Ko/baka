@@ -124,7 +124,7 @@ actor SteamCMD {
             } else if loggedOut {
                 results[id] = .notLoggedIn
             } else {
-                results[id] = .failed(Self.lastMeaningfulLine(out))
+                results[id] = .failed(Self.downloadError(for: id, in: out))
             }
         }
         return results
@@ -259,6 +259,26 @@ actor SteamCMD {
             || lower.contains("account logon denied")
             || lower.contains("two-factor")
             || lower.contains("steam guard")
+    }
+
+    /// Produces a useful failure message for an item: prefers an explicit
+    /// SteamCMD error line, never the noise like "Unloading Steam API...OK".
+    nonisolated static func downloadError(for id: String, in output: String) -> String {
+        let lines = output.split(whereSeparator: { $0 == "\n" || $0 == "\r" })
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+
+        // 1. An explicit "ERROR! Download item <id> failed (...)" line.
+        if let line = lines.first(where: {
+            $0.lowercased().contains("error") && $0.contains(id)
+        }) { return line }
+        // 2. Any error/failure line.
+        if let line = lines.last(where: {
+            let l = $0.lowercased()
+            return l.contains("error") || l.contains("failed") || l.contains("failure")
+        }) { return line }
+        // 3. Generic — avoid trailing "...OK" noise.
+        return "Не удалось скачать (SteamCMD). Проверьте вход в Steam и попробуйте снова."
     }
 
     nonisolated static func lastMeaningfulLine(_ output: String) -> String {

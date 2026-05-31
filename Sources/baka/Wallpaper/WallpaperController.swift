@@ -35,6 +35,14 @@ final class WallpaperController: ObservableObject {
         syncWindows()
     }
 
+    /// Tears down every wallpaper window and its renderer (stops AVPlayers /
+    /// WKWebViews). Called on app termination so nothing keeps the process alive.
+    func tearDownAll() {
+        for window in windows.values { window.close(tearingDown: true) }
+        windows.removeAll()
+        windowKinds.removeAll()
+    }
+
     /// Apply a freshly edited settings object (assignments + power policy).
     func applySettings(_ newSettings: AppSettings) {
         settings = newSettings

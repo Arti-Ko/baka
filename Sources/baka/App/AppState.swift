@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import AppKit
 
 /// Central composition root and observable state for the whole app.
 /// Owns the long-lived services and wires them together once at launch.
@@ -75,6 +76,16 @@ final class AppState: ObservableObject {
             publisher
                 .sink { [weak self] in Task { @MainActor in self?.objectWillChange.send() } }
                 .store(in: &cancellables)
+        }
+
+        // Guarantee the app actually quits: tear down the live wallpaper windows
+        // (AVPlayer / WKWebView) and hard-exit, so an active wallpaper can never
+        // keep the process alive and force a "Force Quit".
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.controller.tearDownAll() }
+            exit(0)
         }
     }
 

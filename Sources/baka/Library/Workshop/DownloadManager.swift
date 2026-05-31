@@ -50,19 +50,31 @@ final class DownloadManager: ObservableObject {
         self.installer = installer
         self.library = library
         self.client = client
+        restore()
     }
 
     func isQueuedOrActive(_ id: String) -> Bool {
         tasks.contains { $0.id == id && $0.isActive }
     }
 
+    /// Removes only completed downloads; failed/incomplete ones stay so the
+    /// user can retry or let them resume.
     func clearFinished() {
-        tasks.removeAll { !$0.isActive }
+        tasks.removeAll { if case .completed = $0.state { return true } else { return false } }
+        persist()
     }
 
     func clearAll() {
         tasks.removeAll()
         items.removeAll()
+        persist()
+    }
+
+    /// Dismiss a single task (e.g. a failed one the user no longer wants).
+    func dismiss(_ id: String) {
+        tasks.removeAll { $0.id == id }
+        items.removeValue(forKey: id)
+        persist()
     }
 
     /// Adds an item to the queue (no-op if already active) and kicks the worker.
@@ -70,6 +82,15 @@ final class DownloadManager: ObservableObject {
         guard !isQueuedOrActive(item.id) else { return }
         items[item.id] = item
         upsert(DownloadTask(id: item.id, title: item.title, previewURL: item.previewURL))
+        persist()
+        Task { await processQueue() }
+    }
+
+    /// Retry a previously failed download.
+    func retry(_ id: String) {
+        guard items[id] != nil else { return }
+        update(id) { $0.state = .queued }
+        persist()
         Task { await processQueue() }
     }
 
@@ -202,9 +223,54 @@ final class DownloadManager: ObservableObject {
     private func update(_ id: String, _ transform: (inout DownloadTask) -> Void) {
         guard let index = tasks.firstIndex(where: { $0.id == id }) else { return }
         transform(&tasks[index])
+        persist()
     }
 
     private func fail(_ id: String, _ message: String) {
         update(id) { $0.state = .failed(message) }
+    }
+
+    // MARK: - Persistence (survive restarts; resume / retry)
+
+    private struct PersistedDownload: Codable {
+        let item: WorkshopItem
+        let failed: Bool
+        let message: String?
+    }
+
+    private func persist() {
+        let entries: [PersistedDownload] = tasks.compactMap { task in
+            guard let item = items[task.id] else { return nil }
+            switch task.state {
+            case .completed:
+                return nil // finished — no need to keep
+            case .failed(let message):
+                return PersistedDownload(item: item, failed: true, message: message)
+            case .queued, .downloading, .installing:
+                return PersistedDownload(item: item, failed: false, message: nil)
+            }
+        }
+        let data = try? JSONEncoder().encode(entries)
+        try? data?.write(to: AppPaths.downloadsFile, options: .atomic)
+    }
+
+    /// Reload the queue on launch: failed items stay (retryable), unfinished
+    /// ones are re-queued so they continue downloading.
+    private func restore() {
+        guard let data = try? Data(contentsOf: AppPaths.downloadsFile),
+              let saved = try? JSONDecoder().decode([PersistedDownload].self, from: data)
+        else { return }
+
+        for entry in saved {
+            items[entry.item.id] = entry.item
+            let state: DownloadTask.State = entry.failed
+                ? .failed(entry.message ?? "Загрузка прервана")
+                : .queued
+            tasks.append(DownloadTask(id: entry.item.id, title: entry.item.title,
+                                      previewURL: entry.item.previewURL, state: state))
+        }
+        if tasks.contains(where: { $0.state == .queued }) {
+            Task { await processQueue() }
+        }
     }
 }

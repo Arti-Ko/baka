@@ -12,7 +12,11 @@ struct DownloadsView: View {
             } else {
                 List {
                     ForEach(state.downloads.tasks) { task in
-                        DownloadRow(task: task)
+                        DownloadRow(
+                            task: task,
+                            onRetry: { state.downloads.retry(task.id) },
+                            onDismiss: { state.downloads.dismiss(task.id) }
+                        )
                     }
                 }
                 .listStyle(.inset)
@@ -47,6 +51,12 @@ struct DownloadsView: View {
 
 private struct DownloadRow: View {
     let task: DownloadTask
+    let onRetry: () -> Void
+    let onDismiss: () -> Void
+
+    private var isFailed: Bool {
+        if case .failed = task.state { return true } else { return false }
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -59,7 +69,16 @@ private struct DownloadRow: View {
                 statusLine
             }
             Spacer(minLength: 0)
-            trailingIcon
+            if isFailed {
+                Button(action: onRetry) { Label("Повторить", systemImage: "arrow.clockwise") }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                Button(action: onDismiss) { Image(systemName: "xmark") }
+                    .buttonStyle(.borderless)
+                    .help("Убрать из списка")
+            } else {
+                trailingIcon
+            }
         }
         .padding(.vertical, 4)
     }

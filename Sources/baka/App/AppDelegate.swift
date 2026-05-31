@@ -8,4 +8,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
     }
+
+    /// Always allow Quit to proceed immediately (the real teardown + hard exit
+    /// happens on `willTerminate`), so Quit never stalls into needing Force Quit.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        .terminateNow
+    }
 }
