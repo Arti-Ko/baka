@@ -59,23 +59,30 @@ enum SelfUpdater {
         onProgress(0.97, "Установка…")
         guard let newApp = findApp(in: unzipDir) else { throw SelfUpdateError.appNotFound }
 
-        // 4. Write the swap+relaunch script and launch it detached.
+        // 4. Write the swap+relaunch script and launch it FULLY detached.
         let script = swapScript()
         let scriptURL = work.appendingPathComponent("swap.sh")
         try script.write(to: scriptURL, atomically: true, encoding: .utf8)
 
+        let logPath = AppPaths.support.appendingPathComponent("update.log").path
         let pid = ProcessInfo.processInfo.processIdentifier
+
+        // Double-detach: the `-c` shell backgrounds an nohup'd copy of the
+        // script and exits immediately, so the worker is reparented to launchd
+        // and cannot be killed when this app terminates. Paths are passed as
+        // positional args ($0..$3) to avoid any quoting issues with spaces.
+        let command = "nohup /bin/bash \"$0\" \"$1\" \"$2\" \"$3\" > '\(logPath)' 2>&1 &"
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/bin/bash")
-        task.arguments = [scriptURL.path, String(pid), newApp.path, appURL.path]
-        // Detach so it survives this app's termination.
-        task.standardOutput = nil
-        task.standardError = nil
+        task.arguments = ["-c", command, scriptURL.path, String(pid), newApp.path, appURL.path]
         try task.run()
+        task.waitUntilExit() // the -c shell returns immediately after backgrounding
 
         onProgress(1.0, "Перезапуск…")
-        Log.app.log("self-update staged; relaunching")
-        // 5. Quit so the script can replace the bundle.
+        Log.app.log("self-update staged (log: \(logPath)); relaunching")
+        // 5. Quit so the script can replace the bundle. Small delay to ensure
+        // the detached worker is already running.
+        try? await Task.sleep(nanoseconds: 400_000_000)
         await MainActor.run { NSApp.terminate(nil) }
     }
 
@@ -93,24 +100,42 @@ enum SelfUpdater {
         """
         #!/bin/bash
         pid="$1"; src="$2"; dest="$3"
-        # Wait (up to ~20s) for the running app to terminate.
-        for _ in $(seq 1 100); do
+        echo "[baka-update] $(date) start pid=$pid"
+        echo "[baka-update] src=$src"
+        echo "[baka-update] dest=$dest"
+
+        # Wait (up to ~30s) for the running app to terminate.
+        for _ in $(seq 1 150); do
           kill -0 "$pid" 2>/dev/null || break
           sleep 0.2
         done
-        # Swap the bundle: move the old aside, copy the new into place.
+        echo "[baka-update] app exited; swapping"
+        sleep 0.5
+
         backup="${dest}.old"
         rm -rf "$backup"
-        mv "$dest" "$backup" 2>/dev/null
+        if ! mv "$dest" "$backup"; then
+          echo "[baka-update] ERROR: could not move old bundle (permissions?)"
+        fi
         if /usr/bin/ditto "$src" "$dest"; then
           xattr -dr com.apple.quarantine "$dest" 2>/dev/null
           rm -rf "$backup"
+          echo "[baka-update] swap OK"
         else
-          # Restore on failure.
+          echo "[baka-update] ERROR: ditto failed; restoring old bundle"
           rm -rf "$dest"
           mv "$backup" "$dest" 2>/dev/null
         fi
-        open "$dest"
+
+        # Relaunch — retry a few times in case LaunchServices needs a moment to
+        # re-register the freshly-replaced bundle.
+        sleep 0.5
+        for _ in 1 2 3; do
+          if open -n "$dest"; then echo "[baka-update] relaunched"; break; fi
+          echo "[baka-update] open failed; retrying"
+          sleep 1
+        done
+        echo "[baka-update] $(date) done"
         """
     }
 

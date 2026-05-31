@@ -4,6 +4,15 @@ All notable changes to Baka are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.8] — 2026-06-01
+
+### Fixed
+- **Auto-update now relaunches reliably.** The updater downloaded the new build
+  but sometimes failed to restart into it. The swap-and-relaunch worker is now
+  fully detached (`nohup` + double-fork) so it survives the app quitting, waits
+  for the process to exit, retries the relaunch, and writes a log to
+  `~/Library/Application Support/baka/update.log` for diagnosis.
+
 ## [0.1.7] — 2026-06-01
 
 ### Changed
