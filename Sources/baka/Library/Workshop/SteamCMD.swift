@@ -6,6 +6,15 @@ private final class CurrentItem: @unchecked Sendable {
     var id: String?
 }
 
+/// Thread-safe handle to the currently running process, so a download can be
+/// cancelled from another actor/thread by terminating it.
+private final class ProcessBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var process: Process?
+    func set(_ p: Process?) { lock.lock(); process = p; lock.unlock() }
+    func terminate() { lock.lock(); process?.terminate(); lock.unlock() }
+}
+
 /// Result of a login attempt.
 enum SteamLoginResult: Sendable, Equatable {
     case success
@@ -46,6 +55,13 @@ enum SteamCMDError: LocalizedError {
 actor SteamCMD {
     private let installDir: URL
     private let downloadURL = URL(string: "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_osx.tar.gz")!
+    /// Handle to the in-flight process, for cancellation.
+    private let processBox = ProcessBox()
+
+    /// Terminates the currently running steamcmd process (cancels a download).
+    func cancelCurrent() {
+        processBox.terminate()
+    }
 
     init() {
         installDir = AppPaths.support.appendingPathComponent("steamcmd", isDirectory: true)
@@ -208,9 +224,11 @@ actor SteamCMD {
                 // fails fast instead of hanging the process forever.
                 process.standardInput = FileHandle.nullDevice
 
+                self.processBox.set(process)
                 do {
                     try process.run()
                 } catch {
+                    self.processBox.set(nil)
                     continuation.resume(throwing: error)
                     return
                 }
@@ -232,6 +250,7 @@ actor SteamCMD {
                     }
                 }
                 process.waitUntilExit()
+                self.processBox.set(nil)
                 continuation.resume(returning: (full, process.terminationStatus))
             }
         }

@@ -43,6 +43,11 @@ final class DownloadManager: ObservableObject {
 
     private var items: [String: WorkshopItem] = [:]
     private var processing = false
+    /// Items the user cancelled mid-batch (dropped on the current batch's return).
+    private var cancelledIDs: Set<String> = []
+    /// True when the active batch process was killed by a cancellation, so the
+    /// surviving items should be re-queued rather than marked failed.
+    private var batchInterrupted = false
 
     var activeCount: Int { tasks.filter(\.isActive).count }
 
@@ -96,6 +101,24 @@ final class DownloadManager: ObservableObject {
         update(id) { $0.state = .queued }
         persist()
         Task { await processQueue() }
+    }
+
+    /// Cancel a download. Queued items are simply dropped; an actively
+    /// downloading item terminates the SteamCMD process (other items in the
+    /// same batch are re-queued and resume in a fresh batch).
+    func cancel(_ id: String) {
+        guard let task = tasks.first(where: { $0.id == id }) else { return }
+        switch task.state {
+        case .queued, .completed, .failed:
+            dismiss(id)
+        case .downloading, .installing:
+            cancelledIDs.insert(id)
+            batchInterrupted = true
+            tasks.removeAll { $0.id == id }
+            items.removeValue(forKey: id)
+            persist()
+            Task { await steam.cancelDownload() }
+        }
     }
 
     // MARK: - Queue worker
@@ -156,7 +179,11 @@ final class DownloadManager: ObservableObject {
                     }
                 }
             }
+            let interrupted = batchInterrupted
+            batchInterrupted = false
             for id in ids {
+                // Item the user cancelled mid-batch → already removed, drop it.
+                if cancelledIDs.remove(id) != nil { continue }
                 guard let item = byID[id] else { continue }
                 switch results[id] ?? .failed("Нет результата") {
                 case .success(let folder):
@@ -164,11 +191,22 @@ final class DownloadManager: ObservableObject {
                 case .notLoggedIn:
                     fail(id, "Сессия Steam недоступна — войдите заново в Настройках")
                 case .failed(let message):
-                    fail(id, message)
+                    // If the process was killed by a cancellation, the other
+                    // items weren't really failures — re-queue them to resume.
+                    if interrupted {
+                        update(id) { $0.state = .queued; $0.progress = 0 }
+                    } else {
+                        fail(id, message)
+                    }
                 }
             }
         } catch {
-            for id in ids { fail(id, error.localizedDescription) }
+            let interrupted = batchInterrupted
+            batchInterrupted = false
+            for id in ids where cancelledIDs.remove(id) == nil {
+                if interrupted { update(id) { $0.state = .queued; $0.progress = 0 } }
+                else { fail(id, error.localizedDescription) }
+            }
         }
     }
 

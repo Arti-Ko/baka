@@ -52,6 +52,11 @@ final class SteamSession: ObservableObject {
         UserDefaults.standard.removeObject(forKey: defaultsKey)
     }
 
+    /// Cancels the in-flight SteamCMD download (terminates the process).
+    func cancelDownload() async {
+        await cmd.cancelCurrent()
+    }
+
     func installSteamCMD() async {
         isInstalling = true
         lastError = nil

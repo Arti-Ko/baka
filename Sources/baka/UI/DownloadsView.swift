@@ -15,7 +15,8 @@ struct DownloadsView: View {
                         DownloadRow(
                             task: task,
                             onRetry: { state.downloads.retry(task.id) },
-                            onDismiss: { state.downloads.dismiss(task.id) }
+                            onDismiss: { state.downloads.dismiss(task.id) },
+                            onCancel: { state.downloads.cancel(task.id) }
                         )
                     }
                 }
@@ -53,9 +54,17 @@ private struct DownloadRow: View {
     let task: DownloadTask
     let onRetry: () -> Void
     let onDismiss: () -> Void
+    let onCancel: () -> Void
 
     private var isFailed: Bool {
         if case .failed = task.state { return true } else { return false }
+    }
+
+    private var isActive: Bool {
+        switch task.state {
+        case .queued, .downloading, .installing: return true
+        default: return false
+        }
     }
 
     var body: some View {
@@ -81,6 +90,11 @@ private struct DownloadRow: View {
                 Button(action: onDismiss) { Image(systemName: "xmark") }
                     .buttonStyle(.borderless)
                     .help("Убрать из списка")
+            } else if isActive {
+                Button(action: onCancel) { Image(systemName: "xmark.circle.fill") }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+                    .help("Отменить загрузку")
             } else {
                 trailingIcon
             }

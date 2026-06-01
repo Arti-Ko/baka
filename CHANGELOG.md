@@ -4,6 +4,13 @@ All notable changes to Baka are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.4] — 2026-06-01
+
+### Added
+- **Cancel downloads** — each active download in the Downloads tab has a cancel
+  button. Queued items are dropped; an in-progress item stops the SteamCMD
+  process, and any other items in the same batch resume automatically.
+
 ## [0.2.3] — 2026-06-01
 
 ### Added
