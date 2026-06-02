@@ -18,12 +18,16 @@ All notable changes to Baka are documented here. The format follows
   - a `SceneWallpaperRenderer` that lays out visible image layers as Core
     Animation layers using the scene's orthographic projection (position, size,
     scale, rotation, opacity, z-order).
+  - **Depth parallax**: layers shift with the pointer based on their
+    `parallaxDepth`, driven by a `CADisplayLink` that runs only while the
+    wallpaper is playing — paused/covered/on-battery scenes spin it down to zero
+    cost, and flat scenes never start it.
   - Scenes that can't be composited (or whose textures we can't decode yet) fall
     back automatically to the poster — never a blank desktop.
 
-  **Not yet rendered** (roadmap): particle systems, shader effects, per-layer
-  animation/parallax, and audio-reactive properties. These are tracked for
-  phase 3+.
+  **Not yet rendered** (roadmap): particle systems, shader effects, scripted
+  property animation, and audio-reactive properties. These are tracked for
+  phase 4+.
 
 ## [0.3.0] — 2026-06-02
 

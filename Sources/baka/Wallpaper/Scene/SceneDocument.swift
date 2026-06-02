@@ -66,6 +66,9 @@ struct SceneLayer {
     let angleZ: Double
     let alpha: Double
     let visible: Bool
+    /// Parallax depth per axis (0 = pinned, larger = moves more with the camera).
+    let parallaxX: Double
+    let parallaxY: Double
 
     init?(object: [String: Any]) {
         // Only image-backed objects are renderable; skip particles/sound/etc.
@@ -91,6 +94,10 @@ struct SceneLayer {
         if let v = object["visible"] as? Bool { visible = v }
         else if let v = object["visible"] as? Int { visible = v != 0 }
         else { visible = true }
+
+        let parallax = SceneDocument.vector(object["parallaxDepth"], count: 2)
+        parallaxX = parallax[0]
+        parallaxY = parallax[1]
     }
 }
 

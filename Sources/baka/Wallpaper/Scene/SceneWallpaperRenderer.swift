@@ -66,8 +66,10 @@ final class SceneWallpaperRenderer: WallpaperRenderer {
     }
 
     func apply(_ directive: RenderDirective) {
-        // Phase-1 scenes are static composites; only the poster fallback can
-        // animate (an animated GIF), so honor pause there.
+        // Drive layer parallax only while playing; pause fully halts the display
+        // link so a covered/on-battery scene costs nothing. The animated-GIF
+        // poster fallback honors pause too.
+        host.setParallaxActive(!directive.isPaused)
         posterImageView.animates = !directive.isPaused
     }
 
@@ -75,6 +77,7 @@ final class SceneWallpaperRenderer: WallpaperRenderer {
     func setVolume(_ level: Double) {}
 
     func tearDown() {
+        host.setParallaxActive(false)
         host.clear()
         posterImageView.animates = false
         posterImageView.image = nil
@@ -107,13 +110,23 @@ private final class SceneHostView: NSView {
         let centerY: Double
         let pixelW: Double       // authored size × scale, in projection pixels
         let pixelH: Double
+        let parallax: CGPoint    // per-axis parallax depth
     }
 
     private var projectionWidth: Double = 1920
     private var projectionHeight: Double = 1080
     private var composited: [Composited] = []
 
+    // Parallax state.
+    private var displayLink: CADisplayLink?
+    private var currentLook: CGPoint = .zero
+    private var targetLook: CGPoint = .zero
+    private var parallaxActive = false
+    private var hasParallax: Bool { composited.contains { $0.parallax != .zero } }
+
     override var isFlipped: Bool { false } // y-up, matching WE projection space
+
+    deinit { displayLink?.invalidate() }
 
     /// Builds CALayers for every decodable visible layer. Returns the count
     /// actually composited (0 → caller should fall back to a poster).
@@ -143,7 +156,8 @@ private final class SceneHostView: NSView {
             composited.append(Composited(
                 layer: calayer,
                 centerX: sceneLayer.originX, centerY: sceneLayer.originY,
-                pixelW: pixelW, pixelH: pixelH
+                pixelW: pixelW, pixelH: pixelH,
+                parallax: CGPoint(x: sceneLayer.parallaxX, y: sceneLayer.parallaxY)
             ))
         }
         needsLayout = true
@@ -157,24 +171,68 @@ private final class SceneHostView: NSView {
 
     override func layout() {
         super.layout()
+        reposition()
+    }
+
+    /// Positions every layer for the current view size and parallax look vector.
+    private func reposition() {
         guard !composited.isEmpty else { return }
 
         // Aspect-fill the projection into the view.
         let scale = max(bounds.width / projectionWidth, bounds.height / projectionHeight)
         let offsetX = (bounds.width - projectionWidth * scale) / 2
         let offsetY = (bounds.height - projectionHeight * scale) / 2
+        // Parallax travel scaled to the display so depth=1 shifts ~3% of it.
+        let strength = min(bounds.width, bounds.height) * 0.03
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         for item in composited {
             let w = item.pixelW * scale
             let h = item.pixelH * scale
-            let cx = offsetX + item.centerX * scale
-            let cy = offsetY + item.centerY * scale
+            let shift = SceneParallax.offset(parallaxDepth: item.parallax,
+                                             look: currentLook, strength: strength)
+            let cx = offsetX + item.centerX * scale + shift.x
+            let cy = offsetY + item.centerY * scale + shift.y
             item.layer.bounds = CGRect(x: 0, y: 0, width: w, height: h)
             item.layer.position = CGPoint(x: cx, y: cy)
         }
         CATransaction.commit()
+    }
+
+    // MARK: - Parallax driver
+
+    /// Starts/stops the parallax loop. Only runs when playing *and* the scene
+    /// actually has parallax layers — a flat scene never spins up a display link.
+    func setParallaxActive(_ active: Bool) {
+        let shouldRun = active && hasParallax
+        guard shouldRun != parallaxActive else { return }
+        parallaxActive = shouldRun
+        if shouldRun {
+            let link = displayLink ?? makeDisplayLink()
+            displayLink = link
+            link.isPaused = false
+        } else {
+            displayLink?.isPaused = true
+            // Ease back to center so a paused scene rests in its neutral pose.
+            currentLook = .zero
+            targetLook = .zero
+            reposition()
+        }
+    }
+
+    private func makeDisplayLink() -> CADisplayLink {
+        let link = displayLink(target: self, selector: #selector(step(_:)))
+        link.add(to: .current, forMode: .common)
+        return link
+    }
+
+    @objc private func step(_ link: CADisplayLink) {
+        let screen = window?.screen ?? NSScreen.main ?? NSScreen.screens.first
+        targetLook = SceneParallax.look(mouse: NSEvent.mouseLocation,
+                                        in: screen?.frame ?? bounds)
+        currentLook = SceneParallax.smoothed(currentLook, toward: targetLook, factor: 0.12)
+        reposition()
     }
 
     /// Decodes a layer asset: `.tex` via TexDecoder, anything else via ImageIO.
