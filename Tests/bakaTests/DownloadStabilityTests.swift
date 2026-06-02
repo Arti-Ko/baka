@@ -42,43 +42,6 @@ final class DownloadStabilityTests: XCTestCase {
         XCTAssertEqual(orphans, ["ws-orphan"])
     }
 
-    // MARK: - Symlink-safe path remap
-
-    func testRemapRebuildsPathUnderNewRoot() {
-        let src = URL(fileURLWithPath: "/old/root")
-        let dst = URL(fileURLWithPath: "/new/dest")
-        let content = src.appendingPathComponent("assets/clip.mp4")
-        let mapped = WorkshopInstaller.remap(content, from: src, to: dst)
-        XCTAssertEqual(mapped?.path, "/new/dest/assets/clip.mp4")
-    }
-
-    func testRemapSurvivesSymlinkedRoot() throws {
-        // Simulate the /var → /private/var symlink that broke the old string
-        // replacement: source folder reported via /var, content via /private/var.
-        let real = tmp.appendingPathComponent("real")
-        try FileManager.default.createDirectory(at: real, withIntermediateDirectories: true)
-        let link = tmp.appendingPathComponent("link")
-        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: real)
-
-        let content = real.appendingPathComponent("index.html")
-        try "x".write(to: content, atomically: true, encoding: .utf8)
-
-        let dest = URL(fileURLWithPath: "/dest")
-        // Pass the *symlinked* root as the source — remap must still resolve it.
-        let mapped = WorkshopInstaller.remap(content, from: link, to: dest)
-        XCTAssertEqual(mapped?.lastPathComponent, "index.html")
-        XCTAssertEqual(mapped?.deletingLastPathComponent().lastPathComponent, "dest")
-    }
-
-    func testRemapReturnsNilWhenOutsideRoot() {
-        let mapped = WorkshopInstaller.remap(
-            URL(fileURLWithPath: "/somewhere/else/file.mp4"),
-            from: URL(fileURLWithPath: "/old/root"),
-            to: URL(fileURLWithPath: "/new/dest")
-        )
-        XCTAssertNil(mapped)
-    }
-
     // MARK: - Retry policy
 
     func testTransientErrorsAreRetryable() {

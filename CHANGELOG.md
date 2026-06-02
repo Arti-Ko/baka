@@ -13,6 +13,12 @@ All notable changes to Baka are documented here. The format follows
   (animated GIF or still image) as a "poster" wallpaper. They are browseable,
   downloadable, assignable to monitors, and tagged with `SCENE` / `APP` badges.
 - **Scene / App filters** in the Workshop type picker, alongside Видео+Web.
+- **`.pkg` unpacking for Scene wallpapers.** Baka now reads Wallpaper Engine's
+  proprietary package format and extracts the renderable assets bundled inside
+  (video / image / HTML). A Scene whose background is a plain video now plays
+  **live** instead of showing a poster; others get a full-resolution poster.
+  Parsing is fully bounds-checked and path-traversal-safe. (Compiled `.tex`
+  textures and the scene graph still require WE's engine and are skipped.)
 
 - **Self-healing library.** On launch Baka reconciles the catalog with disk:
   entries whose content vanished are dropped, and orphan content folders left by
