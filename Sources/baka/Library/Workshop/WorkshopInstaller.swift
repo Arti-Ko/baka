@@ -73,7 +73,7 @@ final class WorkshopInstaller {
     /// Rebuilds a URL that lived under `oldRoot` so it points at the same
     /// relative location under `newRoot`, comparing standardized path components
     /// (symlink-safe). Returns nil if `url` isn't actually inside `oldRoot`.
-    private static func remap(_ url: URL, from oldRoot: URL, to newRoot: URL) -> URL? {
+    nonisolated static func remap(_ url: URL, from oldRoot: URL, to newRoot: URL) -> URL? {
         let target = url.standardizedFileURL.resolvingSymlinksInPath().pathComponents
         let base = oldRoot.standardizedFileURL.resolvingSymlinksInPath().pathComponents
         guard target.count >= base.count, Array(target.prefix(base.count)) == base else {

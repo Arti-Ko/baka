@@ -43,6 +43,51 @@ final class WallpaperLibrary: ObservableObject {
         Log.library.log("library reset: all content removed")
     }
 
+    // MARK: - Disk reconciliation
+
+    /// Keeps the catalog and the on-disk `Content/` directory in sync after a
+    /// crash, interrupted install, or manual deletion:
+    /// 1. Drops catalog entries whose backing content file has vanished.
+    /// 2. Deletes content folders that no catalog entry references (orphans left
+    ///    behind by a failed install).
+    ///
+    /// `contentDir` is injectable for testing; production uses `AppPaths.content`.
+    func reconcileWithDisk(contentDir: URL = AppPaths.content) {
+        let stale = Set(Self.staleEntries(items).map(\.id))
+        let live = items.filter { !stale.contains($0.id) }
+
+        let orphans = Self.orphanFolders(in: contentDir, knownIDs: Set(live.map(\.id)))
+        for url in orphans { try? FileManager.default.removeItem(at: url) }
+
+        if !stale.isEmpty {
+            items = live
+            save()
+        }
+        if !stale.isEmpty || !orphans.isEmpty {
+            Log.library.log("reconciled library: \(stale.count) stale entries, \(orphans.count) orphan folders removed")
+        }
+    }
+
+    /// Catalog entries whose content URL is set but no longer exists on disk.
+    /// Pure (filesystem reads only) so it is unit-testable.
+    nonisolated static func staleEntries(_ items: [Wallpaper]) -> [Wallpaper] {
+        items.filter { wallpaper in
+            guard let url = wallpaper.contentURL else { return false }
+            return !FileManager.default.fileExists(atPath: url.path)
+        }
+    }
+
+    /// Subfolders of `contentDir` whose name is not in `knownIDs` — leftover
+    /// content from interrupted/removed installs. Pure and unit-testable.
+    nonisolated static func orphanFolders(in contentDir: URL, knownIDs: Set<String>) -> [URL] {
+        let fm = FileManager.default
+        guard let entries = try? fm.contentsOfDirectory(
+            at: contentDir, includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+        return entries.filter { !knownIDs.contains($0.lastPathComponent) }
+    }
+
     // MARK: - Persistence
 
     private func load() {

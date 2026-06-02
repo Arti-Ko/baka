@@ -14,6 +14,15 @@ All notable changes to Baka are documented here. The format follows
   downloadable, assignable to monitors, and tagged with `SCENE` / `APP` badges.
 - **Scene / App filters** in the Workshop type picker, alongside Видео+Web.
 
+- **Self-healing library.** On launch Baka reconciles the catalog with disk:
+  entries whose content vanished are dropped, and orphan content folders left by
+  interrupted installs are deleted — so a half-finished download can never show
+  up as a broken wallpaper.
+- **Resilient Workshop browsing.** Transient network failures (timeouts, dropped
+  connections) against Steam's public endpoints are retried with exponential
+  backoff instead of surfacing an immediate error.
+- Download **source** (Steam / SteamCMD / Direct) now survives app restarts.
+
 ### Fixed
 - **Far fewer download errors.** Scene/Application items used to fail with
   "формат не поддерживается"; they now install as posters instead. Items that

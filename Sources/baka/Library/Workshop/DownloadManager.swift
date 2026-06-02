@@ -293,6 +293,8 @@ final class DownloadManager: ObservableObject {
         let item: WorkshopItem
         let failed: Bool
         let message: String?
+        // Optional for backward compat with queues saved before source existed.
+        let source: String?
     }
 
     private func persist() {
@@ -302,9 +304,9 @@ final class DownloadManager: ObservableObject {
             case .completed:
                 return nil // finished — no need to keep
             case .failed(let message):
-                return PersistedDownload(item: item, failed: true, message: message)
+                return PersistedDownload(item: item, failed: true, message: message, source: task.source)
             case .queued, .downloading, .installing:
-                return PersistedDownload(item: item, failed: false, message: nil)
+                return PersistedDownload(item: item, failed: false, message: nil, source: task.source)
             }
         }
         let data = try? JSONEncoder().encode(entries)
@@ -323,8 +325,10 @@ final class DownloadManager: ObservableObject {
             let state: DownloadTask.State = entry.failed
                 ? .failed(entry.message ?? "Загрузка прервана")
                 : .queued
-            tasks.append(DownloadTask(id: entry.item.id, title: entry.item.title,
-                                      previewURL: entry.item.previewURL, state: state))
+            var task = DownloadTask(id: entry.item.id, title: entry.item.title,
+                                    previewURL: entry.item.previewURL, state: state)
+            task.source = entry.source ?? ""
+            tasks.append(task)
         }
         if tasks.contains(where: { $0.state == .queued }) {
             Task { await processQueue() }

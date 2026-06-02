@@ -131,7 +131,7 @@ final class SteamWorkshopClient: WorkshopClient {
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.httpBody = body.data(using: .utf8)
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await dataWithRetry(for: request)
         try Self.validate(response)
 
         return Self.parseDetails(data, order: ids)
@@ -159,12 +159,49 @@ final class SteamWorkshopClient: WorkshopClient {
             forHTTPHeaderField: "User-Agent"
         )
         do {
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await dataWithRetry(for: request)
             try Self.validate(response)
             return String(decoding: data, as: UTF8.self)
+        } catch let error as WorkshopError {
+            throw error
         } catch {
             throw WorkshopError.network(error.localizedDescription)
         }
+    }
+
+    /// Performs the request, retrying transient network failures with
+    /// exponential backoff. Steam's public endpoints intermittently drop or
+    /// time out connections; a couple of quick retries turn most of those
+    /// blips into successes instead of visible errors.
+    private func dataWithRetry(for request: URLRequest, maxRetries: Int = 2) async throws -> (Data, URLResponse) {
+        var attempt = 0
+        while true {
+            do {
+                return try await session.data(for: request)
+            } catch let error as URLError where Self.isTransient(error) && attempt < maxRetries {
+                attempt += 1
+                try? await Task.sleep(nanoseconds: Self.backoffNanos(attempt: attempt))
+            }
+        }
+    }
+
+    /// Network errors worth retrying (transient connectivity, not 4xx/parse).
+    nonisolated static func isTransient(_ error: URLError) -> Bool {
+        switch error.code {
+        case .timedOut, .networkConnectionLost, .cannotConnectToHost,
+             .cannotFindHost, .dnsLookupFailed, .notConnectedToInternet,
+             .resourceUnavailable:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Exponential backoff: 400ms, 800ms, 1600ms… for attempt 1, 2, 3.
+    nonisolated static func backoffNanos(attempt: Int) -> UInt64 {
+        let base: UInt64 = 400_000_000
+        let capped = min(max(attempt, 1), 5)
+        return base << (capped - 1)
     }
 
     private static func validate(_ response: URLResponse) throws {

@@ -90,6 +90,9 @@ final class AppState: ObservableObject {
     }
 
     func start() {
+        // Drop dead catalog entries and orphan content before wiring up windows
+        // so a missing/interrupted download can't surface as a load error.
+        library.reconcileWithDisk()
         controller.start()
         // Silent update check on launch (respects skipped versions).
         Task { await updater.check(manual: false) }
