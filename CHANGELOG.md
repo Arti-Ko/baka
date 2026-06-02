@@ -22,12 +22,15 @@ All notable changes to Baka are documented here. The format follows
     `parallaxDepth`, driven by a `CADisplayLink` that runs only while the
     wallpaper is playing — paused/covered/on-battery scenes spin it down to zero
     cost, and flat scenes never start it.
+  - **Particle systems**: WE particle emitters (snow, dust, embers, sparks) are
+    parsed and rendered with hardware-accelerated `CAEmitterLayer`s — rate,
+    lifetime, size, color/alpha fade, velocity, gravity and emitter shape are
+    mapped from the particle definition. The simulation freezes on pause.
   - Scenes that can't be composited (or whose textures we can't decode yet) fall
     back automatically to the poster — never a blank desktop.
 
-  **Not yet rendered** (roadmap): particle systems, shader effects, scripted
-  property animation, and audio-reactive properties. These are tracked for
-  phase 4+.
+  **Not yet rendered** (roadmap): shader effects, scripted property animation,
+  and audio-reactive properties. These are tracked for phase 5+.
 
 ## [0.3.0] — 2026-06-02
 

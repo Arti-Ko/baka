@@ -11,6 +11,8 @@ struct SceneDocument {
     let projectionHeight: Double
     /// Layers in declaration order (first = back, last = front).
     let layers: [SceneLayer]
+    /// Particle emitters referenced by the scene.
+    let particles: [SceneParticleRef]
 
     static func parse(_ data: Data) -> SceneDocument? {
         guard let root = try? JSONSerialization.jsonObject(
@@ -24,9 +26,11 @@ struct SceneDocument {
 
         let objects = root["objects"] as? [[String: Any]] ?? []
         let layers = objects.compactMap(SceneLayer.init(object:))
+        let particles = objects.compactMap(SceneParticleRef.init(object:))
 
-        guard !layers.isEmpty else { return nil }
-        return SceneDocument(projectionWidth: width, projectionHeight: height, layers: layers)
+        guard !layers.isEmpty || !particles.isEmpty else { return nil }
+        return SceneDocument(projectionWidth: width, projectionHeight: height,
+                             layers: layers, particles: particles)
     }
 
     /// Parses a value that may be a number or a numeric string.
@@ -98,6 +102,24 @@ struct SceneLayer {
         let parallax = SceneDocument.vector(object["parallaxDepth"], count: 2)
         parallaxX = parallax[0]
         parallaxY = parallax[1]
+    }
+}
+
+/// A particle emitter placed in the scene (references a `particles/*.json`).
+struct SceneParticleRef {
+    let particleRef: String
+    let originX: Double
+    let originY: Double
+    let parallaxX: Double
+    let parallaxY: Double
+
+    init?(object: [String: Any]) {
+        guard let particle = object["particle"] as? String, !particle.isEmpty else { return nil }
+        particleRef = particle
+        let origin = SceneDocument.vector(object["origin"], count: 3)
+        originX = origin[0]; originY = origin[1]
+        let parallax = SceneDocument.vector(object["parallaxDepth"], count: 2)
+        parallaxX = parallax[0]; parallaxY = parallax[1]
     }
 }
 

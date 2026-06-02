@@ -47,8 +47,9 @@ final class SceneDocumentTests: XCTestCase {
         XCTAssertFalse(doc.layers[1].visible)
     }
 
-    func testReturnsNilWhenNoImageLayers() {
-        let json = #"{"objects":[{"particle":"p.json"},{"sound":"s.json"}]}"#.data(using: .utf8)!
+    func testReturnsNilWhenNothingRenderable() {
+        // Only non-renderable objects (sound) → nothing to show.
+        let json = #"{"objects":[{"sound":"s.json"},{"light":"l.json"}]}"#.data(using: .utf8)!
         XCTAssertNil(SceneDocument.parse(json))
     }
 

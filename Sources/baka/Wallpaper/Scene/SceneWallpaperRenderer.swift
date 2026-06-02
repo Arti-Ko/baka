@@ -69,7 +69,7 @@ final class SceneWallpaperRenderer: WallpaperRenderer {
         // Drive layer parallax only while playing; pause fully halts the display
         // link so a covered/on-battery scene costs nothing. The animated-GIF
         // poster fallback honors pause too.
-        host.setParallaxActive(!directive.isPaused)
+        host.setPlaying(!directive.isPaused)
         posterImageView.animates = !directive.isPaused
     }
 
@@ -77,7 +77,7 @@ final class SceneWallpaperRenderer: WallpaperRenderer {
     func setVolume(_ level: Double) {}
 
     func tearDown() {
-        host.setParallaxActive(false)
+        host.setPlaying(false)
         host.clear()
         posterImageView.animates = false
         posterImageView.image = nil
@@ -113,16 +113,26 @@ private final class SceneHostView: NSView {
         let parallax: CGPoint    // per-axis parallax depth
     }
 
+    private struct Emitter {
+        let layer: CAEmitterLayer
+        let centerX: Double
+        let centerY: Double
+        let parallax: CGPoint
+    }
+
     private var projectionWidth: Double = 1920
     private var projectionHeight: Double = 1080
     private var composited: [Composited] = []
+    private var emitters: [Emitter] = []
 
     // Parallax state.
     private var displayLink: CADisplayLink?
     private var currentLook: CGPoint = .zero
     private var targetLook: CGPoint = .zero
     private var parallaxActive = false
-    private var hasParallax: Bool { composited.contains { $0.parallax != .zero } }
+    private var hasParallax: Bool {
+        composited.contains { $0.parallax != .zero } || !emitters.isEmpty
+    }
 
     override var isFlipped: Bool { false } // y-up, matching WE projection space
 
@@ -160,13 +170,42 @@ private final class SceneHostView: NSView {
                 parallax: CGPoint(x: sceneLayer.parallaxX, y: sceneLayer.parallaxY)
             ))
         }
+
+        for ref in document.particles {
+            guard let emitter = buildEmitter(ref, folder: folder) else { continue }
+            layer?.addSublayer(emitter.layer)
+            emitters.append(emitter)
+        }
+
         needsLayout = true
-        return composited.count
+        return composited.count + emitters.count
+    }
+
+    /// Resolves and builds one particle emitter; nil when the definition or its
+    /// sprite can't be loaded (the rest of the scene still renders).
+    private func buildEmitter(_ ref: SceneParticleRef, folder: URL) -> Emitter? {
+        let url = folder.appendingPathComponent(ref.particleRef)
+        guard let data = try? Data(contentsOf: url),
+              let system = ParticleSystem.parse(data),
+              let spriteRef = system.spriteRef,
+              let spriteURL = SceneAssetResolver.textureURL(for: spriteRef, in: folder),
+              let sprite = Self.decode(spriteURL)
+        else { return nil }
+
+        let config = EmitterConfig.from(system, spriteBaseSize: Double(sprite.width))
+        let emitterSize = system.emitterSize > 0 ? system.emitterSize : projectionWidth
+        let layer = ParticleEmitterBuilder.makeLayer(
+            config: config, sprite: sprite, shape: system.shape, emitterSize: emitterSize)
+        layer.zPosition = CGFloat(composited.count + emitters.count)
+        return Emitter(layer: layer, centerX: ref.originX, centerY: ref.originY,
+                       parallax: CGPoint(x: ref.parallaxX, y: ref.parallaxY))
     }
 
     func clear() {
         composited.forEach { $0.layer.removeFromSuperlayer() }
         composited.removeAll()
+        emitters.forEach { $0.layer.removeFromSuperlayer() }
+        emitters.removeAll()
     }
 
     override func layout() {
@@ -174,9 +213,10 @@ private final class SceneHostView: NSView {
         reposition()
     }
 
-    /// Positions every layer for the current view size and parallax look vector.
+    /// Positions every layer and emitter for the current view size and parallax
+    /// look vector.
     private func reposition() {
-        guard !composited.isEmpty else { return }
+        guard !composited.isEmpty || !emitters.isEmpty else { return }
 
         // Aspect-fill the projection into the view.
         let scale = max(bounds.width / projectionWidth, bounds.height / projectionHeight)
@@ -197,15 +237,27 @@ private final class SceneHostView: NSView {
             item.layer.bounds = CGRect(x: 0, y: 0, width: w, height: h)
             item.layer.position = CGPoint(x: cx, y: cy)
         }
+        for emitter in emitters {
+            let shift = SceneParallax.offset(parallaxDepth: emitter.parallax,
+                                             look: currentLook, strength: strength)
+            emitter.layer.frame = bounds
+            emitter.layer.emitterPosition = CGPoint(
+                x: offsetX + emitter.centerX * scale + shift.x,
+                y: offsetY + emitter.centerY * scale + shift.y)
+        }
         CATransaction.commit()
     }
 
-    // MARK: - Parallax driver
+    // MARK: - Animation driver
 
-    /// Starts/stops the parallax loop. Only runs when playing *and* the scene
-    /// actually has parallax layers — a flat scene never spins up a display link.
-    func setParallaxActive(_ active: Bool) {
-        let shouldRun = active && hasParallax
+    /// Starts/stops scene animation (layer parallax + particle simulation). Only
+    /// runs when playing *and* the scene actually animates, so a flat scene never
+    /// spins up a display link and a covered/paused scene costs nothing.
+    func setPlaying(_ playing: Bool) {
+        // Freeze/run the particle simulation by toggling layer time.
+        for emitter in emitters { emitter.layer.speed = playing ? 1 : 0 }
+
+        let shouldRun = playing && hasParallax
         guard shouldRun != parallaxActive else { return }
         parallaxActive = shouldRun
         if shouldRun {

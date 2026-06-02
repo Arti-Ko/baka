@@ -27,8 +27,9 @@ not wrecking your battery.
 - 🧩 **Native Scene rendering** — Baka unpacks WE's `.pkg`, decodes `.tex`
   textures (incl. DXT1/3/5 block compression), and composites a scene's image
   layers natively (position, scale, rotation, opacity, z-order) with **pointer
-  depth-parallax**. Particles, shaders, and scripted animation aren't rendered
-  yet, and anything it can't composite falls back to a poster.
+  depth-parallax** and **particle systems** (snow, dust, embers via
+  `CAEmitterLayer`). Shaders and scripted animation aren't rendered yet, and
+  anything it can't composite falls back to a poster.
 - 🖼️ **Application (poster mode)** — Windows `.exe` wallpapers can't run on
   macOS, so Baka renders their bundled preview (animated GIF or still) as a
   poster instead of failing.
@@ -110,10 +111,10 @@ on first use).
 
 - Wallpaper Engine's **Scene** (`.pkg`) format is rendered natively: Baka unpacks
   the package, decodes `.tex` textures (FreeImage/RGBA/LZ4 **and DXT1/3/5 block
-  compression**), composites the image layers, and applies pointer
-  depth-parallax. **Not yet supported:** particle systems, shaders, scripted
-  property animation, and audio-reactive effects —
-  scenes relying on those look partial or fall back to a poster. **Application**
+  compression**), composites the image layers, applies pointer depth-parallax,
+  and renders particle systems via `CAEmitterLayer`. **Not yet supported:**
+  shaders, scripted property animation, and audio-reactive effects — scenes
+  relying on those look partial or fall back to a poster. **Application**
   (`.exe`) wallpapers are Windows executables and only ever show as a poster.
   Portable **Video** and **Web** wallpapers render live and in full.
 - SteamCMD requires **Rosetta** on Apple Silicon (`softwareupdate --install-rosetta`).
