@@ -4,10 +4,10 @@ All notable changes to Baka are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.3.1] — 2026-06-03
 
 ### Added
-- **Native Scene rendering (phase 1).** Baka now composites Wallpaper Engine
+- **Native Scene rendering (phases 1–4).** Baka now composites Wallpaper Engine
   scenes natively instead of only showing a poster:
   - a `.tex` texture decoder (FreeImage-wrapped PNG/JPEG, raw RGBA8888,
     **block-compressed DXT1/DXT3/DXT5 (BC1/BC2/BC3)**, and LZ4-compressed mips
