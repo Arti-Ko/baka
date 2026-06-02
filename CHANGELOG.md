@@ -29,6 +29,13 @@ All notable changes to Baka are documented here. The format follows
   backoff instead of surfacing an immediate error.
 - Download **source** (Steam / SteamCMD / Direct) now survives app restarts.
 
+### Changed
+- **Honest preview controls.** The preview sheet hides the speed/volume sliders
+  for Scene/Application (they do nothing for a poster) and shows a short note
+  explaining that the format renders as a preview on macOS.
+- **Cheaper multi-monitor posters.** A poster shown on several displays now
+  decodes its image once via a shared cache instead of once per screen.
+
 ### Fixed
 - **Far fewer download errors.** Scene/Application items used to fail with
   "формат не поддерживается"; they now install as posters instead. Items that

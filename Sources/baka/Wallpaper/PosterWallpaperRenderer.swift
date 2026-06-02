@@ -17,6 +17,19 @@ final class PosterWallpaperRenderer: WallpaperRenderer {
     private let imageView = NSImageView()
     private var isPaused = false
 
+    /// Shared decoded-image cache so the same poster assigned to several
+    /// monitors is decoded once instead of once per screen. MainActor-isolated
+    /// (NSImageView access is main-thread only anyway).
+    private static let cache = NSCache<NSURL, NSImage>()
+
+    private static func image(at url: URL) -> NSImage? {
+        let key = url as NSURL
+        if let cached = cache.object(forKey: key) { return cached }
+        guard let image = NSImage(contentsOf: url) else { return nil }
+        cache.setObject(image, forKey: key)
+        return image
+    }
+
     init() {
         let container = NSView()
         container.wantsLayer = true
@@ -37,7 +50,7 @@ final class PosterWallpaperRenderer: WallpaperRenderer {
     func load(_ wallpaper: Wallpaper) throws {
         guard !wallpaper.kind.isLiveRendered,
               let url = wallpaper.contentURL,
-              let image = NSImage(contentsOf: url)
+              let image = Self.image(at: url)
         else {
             throw WallpaperError.missingContent
         }

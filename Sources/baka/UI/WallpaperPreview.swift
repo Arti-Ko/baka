@@ -72,8 +72,14 @@ struct WallpaperPreviewView: View {
                 Spacer()
             }
 
-            speedControl
-            volumeControl
+            // Speed/volume only mean something for live video/web. Posters
+            // (Scene/Application) get an honest note instead of dead sliders.
+            if wallpaper.kind.isLiveRendered {
+                speedControl
+                volumeControl
+            } else {
+                posterNote
+            }
             monitorSelection
 
             HStack(spacing: 12) {
@@ -114,6 +120,20 @@ struct WallpaperPreviewView: View {
 
     private func toggleScreen(_ key: String) {
         if selectedKeys.contains(key) { selectedKeys.remove(key) } else { selectedKeys.insert(key) }
+    }
+
+    private var posterNote: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "info.circle")
+                .foregroundStyle(.secondary)
+            Text("\(wallpaper.kind == .application ? "Application" : "Scene") показывается как превью — живой рендер этого формата недоступен на macOS.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.secondary.opacity(0.1)))
     }
 
     private var speedControl: some View {
