@@ -24,6 +24,10 @@ not wrecking your battery.
 
 - 🎬 **Video & Web wallpapers** — `mp4 / mov / m4v / webm` decoded on the GPU via
   AVFoundation, plus HTML/WebGL wallpapers in WKWebView.
+- 🖼️ **Scene & Application (poster mode)** — WE's proprietary Scene/Application
+  formats can't run natively on macOS, so Baka renders their bundled preview
+  (animated GIF or still) as a poster instead of failing — browseable,
+  downloadable, and assignable like any other wallpaper.
 - 🖥️ **True multi-monitor** — a different wallpaper per display, with assignments
   that survive reconnects and resolution changes.
 - 🔋 **Battery-first** — a power governor pauses or throttles motion based on real
@@ -100,9 +104,12 @@ on first use).
 
 **Honest limitations**
 
-- Wallpaper Engine's proprietary **Scene** (`.pkg`) format only renders inside
-  their engine, so it is **not supported**. Baka handles portable **Video** and
-  **Web** wallpapers (and salvages mistagged items that contain a real media file).
+- Wallpaper Engine's proprietary **Scene** (`.pkg`) and **Application** (`.exe`)
+  formats only render inside their engine / on Windows, so Baka cannot reproduce
+  their live motion. Instead it shows their bundled **preview** (animated GIF or
+  still) as a poster wallpaper. Portable **Video** and **Web** wallpapers render
+  live, and mistagged items that contain a real media file are salvaged and
+  played in full.
 - SteamCMD requires **Rosetta** on Apple Silicon (`softwareupdate --install-rosetta`).
 - Credentials are stored locally in a `0600` file and used only to log into Steam.
 

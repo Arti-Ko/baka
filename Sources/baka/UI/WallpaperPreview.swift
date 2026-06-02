@@ -65,7 +65,7 @@ struct WallpaperPreviewView: View {
                     Text(wallpaper.title)
                         .font(.title3.weight(.semibold))
                         .lineLimit(1)
-                    Text(wallpaper.kind == .video ? "Видео-обои" : "Web-обои")
+                    Text(wallpaper.kind.displayName)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -334,9 +334,7 @@ private struct RendererPreview: NSViewRepresentable {
         container.wantsLayer = true
         container.layer?.backgroundColor = NSColor.black.cgColor
 
-        let renderer: WallpaperRenderer = wallpaper.kind == .video
-            ? VideoWallpaperRenderer()
-            : WebWallpaperRenderer()
+        let renderer = WallpaperRendererFactory.make(for: wallpaper.kind)
         context.coordinator.renderer = renderer
 
         let view = renderer.view

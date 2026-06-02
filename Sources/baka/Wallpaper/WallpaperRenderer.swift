@@ -33,3 +33,16 @@ protocol WallpaperRenderer: AnyObject {
     /// Stop playback and free resources before the window is torn down.
     func tearDown()
 }
+
+/// Single source of truth for mapping a `WallpaperKind` to its renderer, shared
+/// by the desktop controller and the in-app preview so they never diverge.
+@MainActor
+enum WallpaperRendererFactory {
+    static func make(for kind: WallpaperKind) -> WallpaperRenderer {
+        switch kind {
+        case .video: return VideoWallpaperRenderer()
+        case .web: return WebWallpaperRenderer()
+        case .scene, .application: return PosterWallpaperRenderer()
+        }
+    }
+}

@@ -4,6 +4,28 @@ All notable changes to Baka are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] — 2026-06-02
+
+### Added
+- **Scene & Application support (poster mode).** Wallpaper Engine's proprietary
+  Scene (`.pkg`) and Application (`.exe`) wallpapers can't run natively on macOS,
+  but they are no longer dead ends: Baka now renders their bundled preview
+  (animated GIF or still image) as a "poster" wallpaper. They are browseable,
+  downloadable, assignable to monitors, and tagged with `SCENE` / `APP` badges.
+- **Scene / App filters** in the Workshop type picker, alongside Видео+Web.
+
+### Fixed
+- **Far fewer download errors.** Scene/Application items used to fail with
+  "формат не поддерживается"; they now install as posters instead. Items that
+  bundle a real video/HTML are still salvaged and rendered live.
+- **No more main-thread stalls during install.** Preview/thumbnail downloads
+  were done with a blocking `Data(contentsOf:)` on the main actor (a UI freeze
+  risk); they now use async `URLSession`.
+- **Robust content path resolution.** The installer rebuilt the on-disk content
+  path with a fragile string replace that broke under symlinked roots
+  (`/var` → `/private/var`), producing spurious "контент не найден" failures. It
+  now remaps paths component-wise (symlink-safe).
+
 ## [0.2.4] — 2026-06-01
 
 ### Added

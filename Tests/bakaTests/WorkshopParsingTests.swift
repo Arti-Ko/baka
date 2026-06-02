@@ -83,8 +83,24 @@ final class WorkshopParsingTests: XCTestCase {
         XCTAssertNil(web.fileURL)
         XCTAssertFalse(web.isDirectlyDownloadable)
 
-        // Scene/Application have no supported kind.
-        XCTAssertNil(items[2].kind)
+        // Scene now maps to the .scene kind (rendered as a poster), so it is no
+        // longer dropped from results.
+        XCTAssertEqual(items[2].kind, .scene)
+    }
+
+    func testParsesSceneAndApplicationKinds() {
+        let json = """
+        {"response": {"publishedfiledetails": [
+          {"publishedfileid": "1", "result": 1, "title": "Scene", "tags": [{"tag": "Scene"}]},
+          {"publishedfileid": "2", "result": 1, "title": "App", "tags": [{"tag": "Application"}]},
+          {"publishedfileid": "3", "result": 1, "title": "Untyped", "tags": [{"tag": "Anime"}]}
+        ]}}
+        """.data(using: .utf8)!
+
+        let items = SteamWorkshopClient.parseDetails(json, order: ["1", "2", "3"])
+        XCTAssertEqual(items[0].kind, .scene)
+        XCTAssertEqual(items[1].kind, .application)
+        XCTAssertNil(items[2].kind) // genuinely untyped → no kind
     }
 
     func testSkipsEntriesWithNonSuccessResult() {

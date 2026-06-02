@@ -246,12 +246,15 @@ final class SteamWorkshopClient: WorkshopClient {
         return Data(bytes)
     }
 
-    /// Maps Workshop type tags to a supported wallpaper kind (video/web only).
+    /// Maps Workshop type tags to a wallpaper kind. Video/Web render live;
+    /// Scene/Application render as a poster (their bundled preview).
     private static func kind(fromTags tags: [[String: Any]]?) -> WallpaperKind? {
         guard let tags else { return nil }
         let names = tags.compactMap { ($0["tag"] as? String)?.lowercased() }
         if names.contains("video") { return .video }
         if names.contains("web") { return .web }
-        return nil // scene / application are unsupported
+        if names.contains("scene") { return .scene }
+        if names.contains("application") { return .application }
+        return nil // unknown / untyped item
     }
 }

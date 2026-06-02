@@ -151,9 +151,6 @@ final class WallpaperController: ObservableObject {
     }
 
     private func makeRenderer(for kind: WallpaperKind) -> WallpaperRenderer {
-        switch kind {
-        case .video: return VideoWallpaperRenderer()
-        case .web: return WebWallpaperRenderer()
-        }
+        WallpaperRendererFactory.make(for: kind)
     }
 }

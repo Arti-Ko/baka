@@ -6,3 +6,4 @@ dist/
 Package.resolved
 __pycache__/
 *.pyc
+.vscode/

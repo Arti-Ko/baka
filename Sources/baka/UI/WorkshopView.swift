@@ -109,7 +109,7 @@ struct WorkshopView: View {
                 .foregroundStyle(.secondary)
             Text("Ничего не найдено")
                 .foregroundStyle(.secondary)
-            Text("Поддерживаются только Video и Web (Scene не рендерится)")
+            Text("Video и Web рендерятся вживую; Scene/Application показываются как превью")
                 .font(.caption).foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -339,8 +339,9 @@ private struct WorkshopCard: View {
     private func kindBadge(_ kind: WallpaperKind) -> some View {
         VStack {
             HStack {
-                Text(kind == .video ? "VIDEO" : "WEB")
+                Label(kind.badgeText, systemImage: kind.symbolName)
                     .font(.system(size: 9, weight: .bold))
+                    .labelStyle(.titleAndIcon)
                     .padding(.horizontal, 6).padding(.vertical, 3)
                     .background(.ultraThinMaterial, in: Capsule())
                     .padding(8)

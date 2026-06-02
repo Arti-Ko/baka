@@ -215,7 +215,7 @@ final class DownloadManager: ObservableObject {
     private func install(from folder: URL, item: WorkshopItem, source: String) async {
         update(item.id) { $0.state = .installing; $0.source = source }
         do {
-            try installer.install(from: folder, workshopID: item.id, fallback: item)
+            try await installer.install(from: folder, workshopID: item.id, fallback: item)
             update(item.id) { $0.state = .completed }
             persist()
         } catch {
@@ -236,9 +236,10 @@ final class DownloadManager: ObservableObject {
             try FileManager.default.moveItem(at: tempURL, to: destination)
 
             var previewURL: URL?
-            if let preview = item.previewURL, let data = try? Data(contentsOf: preview) {
+            if let preview = item.previewURL,
+               let (data, _) = try? await URLSession.shared.data(from: preview) {
                 let p = AppPaths.previews.appendingPathComponent("\(id).jpg")
-                try? data.write(to: p)
+                try? data.write(to: p, options: .atomic)
                 previewURL = p
             }
             library.upsert(Wallpaper(
@@ -258,7 +259,7 @@ final class DownloadManager: ObservableObject {
         if let we = error as? WallpaperError {
             switch we {
             case .missingContent: return "контент не найден после загрузки"
-            case .unsupportedKind: return "формат обоев не поддерживается (Scene/Application)"
+            case .unsupportedKind: return "в загрузке нет ни контента, ни превью для показа"
             }
         }
         return error.localizedDescription

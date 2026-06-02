@@ -52,7 +52,7 @@ struct WallpaperCard: View {
     }
 
     private var kindBadge: some View {
-        Image(systemName: wallpaper.kind == .video ? "film.fill" : "globe")
+        Image(systemName: wallpaper.kind.symbolName)
             .font(.system(size: 10, weight: .semibold))
             .padding(6)
             .background(.ultraThinMaterial, in: Circle())

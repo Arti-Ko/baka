@@ -58,23 +58,28 @@ enum NSFWFilter: String, CaseIterable, Sendable {
     }
 }
 
-/// Which renderable types to show. `both` runs two queries (video + web) and
-/// merges them, since Steam's `requiredtags` are AND-combined.
+/// Which types to show. `both` runs two queries (video + web) and merges them,
+/// since Steam's `requiredtags` are AND-combined. Scene/Application are shown as
+/// posters (their bundled preview) since their content can't run on macOS.
 enum WallpaperTypeFilter: String, CaseIterable, Sendable {
-    case video, web, both
+    case both, video, web, scene, application
 
     var label: String {
         switch self {
+        case .both: return "Видео+Web"
         case .video: return "Видео"
         case .web: return "Web"
-        case .both: return "Оба"
+        case .scene: return "Scene"
+        case .application: return "App"
         }
     }
     var kinds: [WallpaperKind] {
         switch self {
+        case .both: return [.video, .web]
         case .video: return [.video]
         case .web: return [.web]
-        case .both: return [.video, .web]
+        case .scene: return [.scene]
+        case .application: return [.application]
         }
     }
 }
@@ -82,8 +87,8 @@ enum WallpaperTypeFilter: String, CaseIterable, Sendable {
 /// A fully described Workshop search. Immutable; the UI produces new copies.
 struct WorkshopQuery: Equatable, Sendable {
     var text: String = ""
-    /// Type filter applied server-side (`requiredtags`). We only support the
-    /// renderable types, so this is never Scene/Application.
+    /// Type filter applied server-side (`requiredtags`). Defaults to the live
+    /// types (video+web); Scene/Application can be selected explicitly.
     var type: WallpaperTypeFilter = .both
     var sort: WorkshopSort = .trend
     var period: TrendPeriod = .week
@@ -107,7 +112,7 @@ struct WorkshopQuery: Equatable, Sendable {
     /// resolution + age). For "only 18+" we request the Mature tag from Steam
     /// directly so we actually receive adult items.
     func requiredTags(for kind: WallpaperKind) -> [String] {
-        var tags = [kind == .video ? "Video" : "Web"]
+        var tags = [kind.workshopTag]
         tags.append(contentsOf: categories.sorted())
         if !resolution.isEmpty { tags.append(resolution) }
         if nsfw == .only { tags.append("Mature") }

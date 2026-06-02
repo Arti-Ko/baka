@@ -46,10 +46,39 @@ final class WorkshopProjectTests: XCTestCase {
         XCTAssertEqual(project.contentFile.lastPathComponent, "actual.webm")
     }
 
-    func testReturnsNilForTrueSceneOnly() throws {
+    func testReturnsNilForSceneWithNothingDisplayable() throws {
+        // Scene with no bundled preview image → nothing to show at all.
         try write("project.json", #"{"type":"scene","file":"scene.pkg"}"#)
         try write("scene.pkg")
         XCTAssertNil(WorkshopProject.load(from: tmp))
+    }
+
+    func testSceneWithPreviewBecomesPoster() throws {
+        // A genuine Scene that ships a preview → poster, not a failure.
+        try write("project.json", #"{"type":"scene","file":"scene.pkg","preview":"preview.gif"}"#)
+        try write("scene.pkg")
+        try write("preview.gif")
+        let project = try XCTUnwrap(WorkshopProject.load(from: tmp))
+        XCTAssertEqual(project.kind, .scene)
+        XCTAssertEqual(project.contentFile.lastPathComponent, "preview.gif")
+    }
+
+    func testApplicationWithPreviewBecomesPosterApplication() throws {
+        try write("project.json", #"{"type":"application","preview":"preview.jpg"}"#)
+        try write("app.exe")
+        try write("preview.jpg")
+        let project = try XCTUnwrap(WorkshopProject.load(from: tmp))
+        XCTAssertEqual(project.kind, .application)
+        XCTAssertEqual(project.contentFile.lastPathComponent, "preview.jpg")
+    }
+
+    func testSceneFindsAnyImageWhenPreviewFieldMissing() throws {
+        // No preview declared, but an image sits in the folder → still a poster.
+        try write("project.json", #"{"type":"scene"}"#)
+        try write("thumb.png")
+        let project = try XCTUnwrap(WorkshopProject.load(from: tmp))
+        XCTAssertEqual(project.kind, .scene)
+        XCTAssertEqual(project.contentFile.pathExtension, "png")
     }
 
     func testInfersWebFromIndexHTMLWithoutProjectJSON() throws {

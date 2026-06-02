@@ -33,10 +33,7 @@ struct ThumbnailView: View {
     }
 
     private var placeholderIcon: String {
-        switch wallpaper?.kind {
-        case .video: return "film"
-        case .web: return "globe"
-        case nil: return "rectangle.dashed"
-        }
+        guard let kind = wallpaper?.kind else { return "rectangle.dashed" }
+        return kind.symbolName
     }
 }

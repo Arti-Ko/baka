@@ -1,16 +1,69 @@
 import Foundation
 
-/// The kind of content a wallpaper renders. Scene (.pkg) is intentionally
-/// excluded — it is Wallpaper Engine's proprietary compiled format and cannot
-/// be rendered without their engine.
-enum WallpaperKind: String, Codable, Sendable {
+/// The kind of content a wallpaper renders.
+///
+/// `video` and `web` are rendered live. `scene` (Wallpaper Engine's proprietary
+/// compiled `.pkg`) and `application` (a Windows executable) cannot run natively
+/// on macOS, so they are rendered as a **poster** — their bundled preview image
+/// or animated GIF — instead of failing to load.
+enum WallpaperKind: String, Codable, Sendable, CaseIterable {
     case video
     case web
+    case scene
+    case application
+
+    /// True when the content is rendered live (motion driven by a real engine),
+    /// false when we can only show a static/animated poster.
+    var isLiveRendered: Bool { self == .video || self == .web }
+
+    /// The Steam Workshop `requiredtags` value for this kind.
+    var workshopTag: String {
+        switch self {
+        case .video: return "Video"
+        case .web: return "Web"
+        case .scene: return "Scene"
+        case .application: return "Application"
+        }
+    }
+
+    /// Short uppercase badge label shown on cards.
+    var badgeText: String {
+        switch self {
+        case .video: return "VIDEO"
+        case .web: return "WEB"
+        case .scene: return "SCENE"
+        case .application: return "APP"
+        }
+    }
+
+    /// SF Symbol used as a placeholder / badge icon.
+    var symbolName: String {
+        switch self {
+        case .video: return "film.fill"
+        case .web: return "globe"
+        case .scene: return "cube.fill"
+        case .application: return "app.fill"
+        }
+    }
+
+    /// Human-readable Russian label for the preview/header.
+    var displayName: String {
+        switch self {
+        case .video: return "Видео-обои"
+        case .web: return "Web-обои"
+        case .scene: return "Scene (превью)"
+        case .application: return "Application (превью)"
+        }
+    }
 }
 
 /// Recognized file formats, kept nonisolated so any context can consult them.
 enum WallpaperFormats {
     static let video: Set<String> = ["mp4", "mov", "m4v", "webm", "mkv", "avi"]
+
+    /// Image formats usable as a poster for Scene/Application wallpapers.
+    /// `gif` is animated by `NSImageView`, so animated previews stay alive.
+    static let image: Set<String> = ["gif", "png", "jpg", "jpeg", "webp", "bmp", "heic", "tiff", "tif"]
 }
 
 /// An immutable description of a single wallpaper available in the library.
