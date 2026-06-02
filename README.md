@@ -24,10 +24,11 @@ not wrecking your battery.
 
 - 🎬 **Video & Web wallpapers** — `mp4 / mov / m4v / webm` decoded on the GPU via
   AVFoundation, plus HTML/WebGL wallpapers in WKWebView.
-- 🧩 **Native Scene rendering (phase 1)** — Baka unpacks WE's `.pkg`, decodes
-  `.tex` textures, and composites a scene's image layers natively (position,
-  scale, rotation, opacity, z-order). Particles, shaders, and animation aren't
-  rendered yet, and anything it can't composite falls back to a poster.
+- 🧩 **Native Scene rendering** — Baka unpacks WE's `.pkg`, decodes `.tex`
+  textures (incl. DXT1/3/5 block compression), and composites a scene's image
+  layers natively (position, scale, rotation, opacity, z-order). Particles,
+  shaders, and animation aren't rendered yet, and anything it can't composite
+  falls back to a poster.
 - 🖼️ **Application (poster mode)** — Windows `.exe` wallpapers can't run on
   macOS, so Baka renders their bundled preview (animated GIF or still) as a
   poster instead of failing.
@@ -107,14 +108,13 @@ on first use).
 
 **Honest limitations**
 
-- Wallpaper Engine's **Scene** (`.pkg`) format is rendered natively in a
-  **phase-1** capacity: Baka unpacks the package, decodes `.tex` textures
-  (FreeImage/RGBA/LZ4), and composites the static image layers. **Not yet
-  supported:** block-compressed (DXT/BC) textures, particle systems, shaders,
-  per-layer animation, and audio-reactive effects — scenes relying on those look
-  partial or fall back to a poster. **Application** (`.exe`) wallpapers are
-  Windows executables and only ever show as a poster. Portable **Video** and
-  **Web** wallpapers render live and in full.
+- Wallpaper Engine's **Scene** (`.pkg`) format is rendered natively: Baka unpacks
+  the package, decodes `.tex` textures (FreeImage/RGBA/LZ4 **and DXT1/3/5 block
+  compression**), and composites the static image layers. **Not yet supported:**
+  particle systems, shaders, per-layer animation, and audio-reactive effects —
+  scenes relying on those look partial or fall back to a poster. **Application**
+  (`.exe`) wallpapers are Windows executables and only ever show as a poster.
+  Portable **Video** and **Web** wallpapers render live and in full.
 - SteamCMD requires **Rosetta** on Apple Silicon (`softwareupdate --install-rosetta`).
 - Credentials are stored locally in a `0600` file and used only to log into Steam.
 

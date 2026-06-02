@@ -9,8 +9,10 @@ All notable changes to Baka are documented here. The format follows
 ### Added
 - **Native Scene rendering (phase 1).** Baka now composites Wallpaper Engine
   scenes natively instead of only showing a poster:
-  - a `.tex` texture decoder (FreeImage-wrapped PNG/JPEG, raw RGBA8888, and
-    LZ4-compressed mips via Apple's `Compression` framework);
+  - a `.tex` texture decoder (FreeImage-wrapped PNG/JPEG, raw RGBA8888,
+    **block-compressed DXT1/DXT3/DXT5 (BC1/BC2/BC3)**, and LZ4-compressed mips
+    via Apple's `Compression` framework) — DXT5 is the dominant WE texture
+    format, so most scene textures now decode;
   - a `scene.json` parser that follows WE's object → model → material → texture
     indirection;
   - a `SceneWallpaperRenderer` that lays out visible image layers as Core
@@ -19,9 +21,9 @@ All notable changes to Baka are documented here. The format follows
   - Scenes that can't be composited (or whose textures we can't decode yet) fall
     back automatically to the poster — never a blank desktop.
 
-  **Not yet rendered** (roadmap): block-compressed textures (DXT/BC), particle
-  systems, shader effects, per-layer animation/parallax, and audio-reactive
-  properties. These are tracked for phase 2+.
+  **Not yet rendered** (roadmap): particle systems, shader effects, per-layer
+  animation/parallax, and audio-reactive properties. These are tracked for
+  phase 3+.
 
 ## [0.3.0] — 2026-06-02
 

@@ -124,6 +124,18 @@ final class TexDecoderTests: XCTestCase {
         XCTAssertEqual(image.height, 8)
     }
 
+    func testDecodesDXT5Texture() throws {
+        // One DXT5 block (16 bytes): opaque red, full alpha → 4×4 red texture.
+        let red565: UInt16 = 0xF800
+        let alpha: [UInt8] = [255, 0, 0, 0, 0, 0, 0, 0]
+        let color: [UInt8] = [UInt8(red565 & 0xFF), UInt8(red565 >> 8), 0x1F, 0x00, 0, 0, 0, 0]
+        let tex = makeTex(format: 4, container: "TEXB0001", freeImageFormat: nil,
+                          mipW: 4, mipH: 4, isLZ4: false, decompressedSize: 0, payload: alpha + color)
+        let image = try XCTUnwrap(TexDecoder.decodeImage(from: tex))
+        XCTAssertEqual(image.width, 4)
+        XCTAssertEqual(image.height, 4)
+    }
+
     func testRejectsNonTexture() {
         // A well-formed length-prefixed string whose magic isn't "TEXV…".
         let notTex = Data(str("NOPEMAGIC"))
@@ -139,9 +151,9 @@ final class TexDecoderTests: XCTestCase {
     }
 
     func testUnsupportedFormatReturnsNilNotCrash() {
-        // DXT5 (format 4) with non-image raw bytes → unsupported, but safe.
+        // An unknown/unsupported format code with non-image raw bytes → nil, safe.
         let raw = [UInt8](repeating: 0xAB, count: 64)
-        let tex = makeTex(format: 4, container: "TEXB0001", freeImageFormat: nil,
+        let tex = makeTex(format: 99, container: "TEXB0001", freeImageFormat: nil,
                           mipW: 8, mipH: 8, isLZ4: false, decompressedSize: 0, payload: raw)
         XCTAssertNil(TexDecoder.decodeImage(from: tex))
     }

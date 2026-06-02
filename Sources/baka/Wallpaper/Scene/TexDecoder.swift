@@ -108,9 +108,26 @@ enum TexDecoder {
         switch TexFormat(rawValue: rawFormat) {
         case .rgba8888:
             return try Self.rgba8888Image(bytes, width: width, height: height)
+        case .dxt1, .dxt3, .dxt5:
+            return try Self.decodeBlockCompressed(bytes, width: width, height: height, format: rawFormat)
         default:
             throw TexError.unsupportedFormat(rawFormat)
         }
+    }
+
+    /// Expands a block-compressed (DXT) payload to RGBA8888 then wraps it.
+    static func decodeBlockCompressed(_ bytes: Data, width: Int, height: Int, format: Int) throws -> CGImage {
+        let codecFormat: BlockTextureCodec.Format
+        switch TexFormat(rawValue: format) {
+        case .dxt1: codecFormat = .dxt1
+        case .dxt3: codecFormat = .dxt3
+        case .dxt5: codecFormat = .dxt5
+        default: throw TexError.unsupportedFormat(format)
+        }
+        guard let rgba = BlockTextureCodec.decode(bytes, width: width, height: height, format: codecFormat) else {
+            throw TexError.truncated
+        }
+        return try rgba8888Image(Data(rgba), width: width, height: height)
     }
 
     // MARK: - Decoders
