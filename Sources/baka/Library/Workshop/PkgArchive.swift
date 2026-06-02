@@ -71,16 +71,20 @@ enum PkgArchive {
         return entries
     }
 
-    /// Extensions worth writing to disk — assets a Baka renderer can actually
-    /// use. Everything else (`.tex`, `.mdl`, `scene.json`, shaders…) is skipped.
-    static func isRenderableAsset(_ path: String) -> Bool {
+    /// Extensions worth writing to disk — assets a Baka renderer can use:
+    /// directly-playable media (video/image/html), plus the pieces needed to
+    /// composite a Scene natively (`scene.json`, material/model `.json`, `.tex`
+    /// textures). Shaders, models, sounds and other engine-only files are skipped.
+    static func shouldExtract(_ path: String) -> Bool {
         let ext = (path as NSString).pathExtension.lowercased()
         return WallpaperFormats.video.contains(ext)
             || WallpaperFormats.image.contains(ext)
             || ext == "html" || ext == "htm"
+            || ext == "json"
+            || ext == "tex"
     }
 
-    /// Unpacks renderable assets from a single `.pkg` into `dir`, preserving the
+    /// Unpacks usable assets from a single `.pkg` into `dir`, preserving the
     /// archive's relative layout. Path-traversal entries are rejected. Failures
     /// are swallowed per-entry — extraction is always best-effort.
     static func unpack(_ pkgURL: URL, into dir: URL) {
@@ -89,7 +93,7 @@ enum PkgArchive {
 
         let fm = FileManager.default
         let root = dir.standardizedFileURL
-        for entry in entries where isRenderableAsset(entry.path) {
+        for entry in entries where shouldExtract(entry.path) {
             guard let dest = safeDestination(for: entry.path, under: root) else { continue }
             try? fm.createDirectory(at: dest.deletingLastPathComponent(),
                                     withIntermediateDirectories: true)

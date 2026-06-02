@@ -75,15 +75,19 @@ final class PkgArchiveTests: XCTestCase {
         XCTAssertThrowsError(try PkgArchive.extract(from: garbage))
     }
 
-    // MARK: - Renderable-asset filtering
+    // MARK: - Extraction filtering
 
-    func testOnlyRenderableAssetsAreSelected() {
-        XCTAssertTrue(PkgArchive.isRenderableAsset("bg.mp4"))
-        XCTAssertTrue(PkgArchive.isRenderableAsset("art/poster.gif"))
-        XCTAssertTrue(PkgArchive.isRenderableAsset("index.html"))
-        XCTAssertFalse(PkgArchive.isRenderableAsset("textures/t.tex"))
-        XCTAssertFalse(PkgArchive.isRenderableAsset("scene.json"))
-        XCTAssertFalse(PkgArchive.isRenderableAsset("model.mdl"))
+    func testExtractsUsableAssetsForSceneRendering() {
+        XCTAssertTrue(PkgArchive.shouldExtract("bg.mp4"))
+        XCTAssertTrue(PkgArchive.shouldExtract("art/poster.gif"))
+        XCTAssertTrue(PkgArchive.shouldExtract("index.html"))
+        // Needed to composite a Scene natively.
+        XCTAssertTrue(PkgArchive.shouldExtract("textures/t.tex"))
+        XCTAssertTrue(PkgArchive.shouldExtract("scene.json"))
+        XCTAssertTrue(PkgArchive.shouldExtract("models/m.json"))
+        // Engine-only files we can't use are still skipped.
+        XCTAssertFalse(PkgArchive.shouldExtract("model.mdl"))
+        XCTAssertFalse(PkgArchive.shouldExtract("shaders/s.frag"))
     }
 
     // MARK: - Path-traversal safety
@@ -103,7 +107,7 @@ final class PkgArchiveTests: XCTestCase {
 
     // MARK: - End-to-end unpack onto disk
 
-    func testUnpackWritesRenderableAssetsAndSkipsTextures() throws {
+    func testUnpackWritesSceneAssetsAndSkipsEngineFiles() throws {
         let dir = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("baka-pkg-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -111,17 +115,16 @@ final class PkgArchiveTests: XCTestCase {
 
         let pkg = makePackage(entries: [
             ("bg.mp4", Array("MOVIE".utf8)),
-            ("tex/atlas.tex", Array("RAWTEX".utf8)),
+            ("materials/atlas.tex", Array("RAWTEX".utf8)),
+            ("shaders/effect.frag", Array("SHADER".utf8)),
         ])
         let pkgURL = dir.appendingPathComponent("scene.pkg")
         try pkg.write(to: pkgURL)
 
         PkgArchive.unpack(pkgURL, into: dir)
 
-        let video = dir.appendingPathComponent("bg.mp4")
-        let tex = dir.appendingPathComponent("tex/atlas.tex")
-        XCTAssertTrue(FileManager.default.fileExists(atPath: video.path))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: tex.path)) // textures skipped
-        XCTAssertEqual(try String(contentsOf: video, encoding: .utf8), "MOVIE")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: dir.appendingPathComponent("bg.mp4").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: dir.appendingPathComponent("materials/atlas.tex").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.appendingPathComponent("shaders/effect.frag").path))
     }
 }

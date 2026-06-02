@@ -42,7 +42,8 @@ enum WallpaperRendererFactory {
         switch kind {
         case .video: return VideoWallpaperRenderer()
         case .web: return WebWallpaperRenderer()
-        case .scene, .application: return PosterWallpaperRenderer()
+        case .scene: return SceneWallpaperRenderer()
+        case .application: return PosterWallpaperRenderer()
         }
     }
 }

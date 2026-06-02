@@ -39,14 +39,35 @@ struct WorkshopProject {
             return WorkshopProject(title: title, kind: .web, contentFile: web, previewFile: preview)
         }
 
-        // 3. Scene/Application: the real content can't run on macOS, but a
-        //    bundled preview lets us show a poster (often an animated GIF).
-        if let poster = posterFile(in: folder, declaredPreview: preview) {
-            let kind: WallpaperKind = (declared == "application") ? .application : .scene
-            return WorkshopProject(title: title, kind: kind, contentFile: poster, previewFile: preview)
+        // 3. Scene: composited natively from scene.json when present, else shown
+        //    as a poster. We point contentFile at the poster when we have one
+        //    (so the renderer can fall back), otherwise at scene.json itself.
+        let poster = posterFile(in: folder, declaredPreview: preview)
+        let sceneJSON = findSceneJSON(in: folder)
+        if declared != "application", sceneJSON != nil || poster != nil {
+            let content = poster ?? sceneJSON!
+            return WorkshopProject(title: title, kind: .scene, contentFile: content, previewFile: preview)
+        }
+
+        // 3b. Application: no native renderer — show a poster if one exists.
+        if let poster {
+            return WorkshopProject(title: title, kind: .application, contentFile: poster, previewFile: preview)
         }
 
         // 4. Nothing displayable at all.
+        return nil
+    }
+
+    /// Locates a `scene.json` anywhere in the (already-unpacked) item folder.
+    private static func findSceneJSON(in folder: URL) -> URL? {
+        let direct = folder.appendingPathComponent("scene.json")
+        if FileManager.default.fileExists(atPath: direct.path) { return direct }
+        guard let enumerator = FileManager.default.enumerator(
+            at: folder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
+        ) else { return nil }
+        for case let url as URL in enumerator where url.lastPathComponent.lowercased() == "scene.json" {
+            return url
+        }
         return nil
     }
 
